@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.edgedepth/research",
+  "title": "EdgeDepth Research",
+  "description": "Search recorded crypto and TradFi microstructure through deterministic, reproducible agent tools.",
+  "version": "0.2.3",
+  "repository": {
+    "url": "https://gitlab.com/jtucker96/edgedepth-research-mcp",
+    "source": "gitlab"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.edgedepth.com/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@edgedepth/research-mcp",
+      "version": "0.2.3",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "EDGEDEPTH_API_KEY",
+          "description": "Required for the stdio package. Hosted remote clients use browser OAuth instead.",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

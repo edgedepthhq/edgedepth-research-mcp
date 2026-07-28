@@ -1,0 +1,57 @@
+{
+  "name": "@edgedepth/research-mcp",
+  "version": "0.2.3",
+  "description": "Search recorded crypto and TradFi microstructure through the EdgeDepth Research API as deterministic MCP tools.",
+  "mcpName": "com.edgedepth/research",
+  "license": "MIT",
+  "type": "module",
+  "author": "EdgeDepth",
+  "homepage": "https://app.edgedepth.com/research/api/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/jtucker96/edgedepth-research-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "edgedepth",
+    "crypto",
+    "tradfi",
+    "perpetual-futures",
+    "market-microstructure",
+    "research",
+    "trading"
+  ],
+  "bin": {
+    "edgedepth-research-mcp": "dist/stdio.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "server.json"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/http.js",
+    "start:stdio": "node dist/stdio.js",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "express": "^5.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
