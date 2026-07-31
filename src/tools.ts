@@ -652,7 +652,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'bytes. A read, never a scan (not credit-metered). Use it to turn one observed moment into ' +
         'candidate clauses, then run_scan to find every other time it looked like that. Selection ' +
         'discipline: if you picked the moment because it moved, expect the follow-up scan to ' +
-        'deflate over all occurrences. That is the product working.',
+        'deflate over all occurrences. That is the product working. ' +
+        'TIERS (2026-07-31): reading the CURRENT minute is free on every key. Reading a PAST ' +
+        'minute is a Pro feature and answers 403 GRANT_REQUIRED on a free account - the record ' +
+        'is the paid part, and the error body carries the upgrade URL. Ask for the present when ' +
+        'you only need what is true now; ask for a past minute when you need the record.',
       inputSchema: {
         symbol: z.string().describe('Lowercase perp, e.g. btcusdt.'),
         at: z
