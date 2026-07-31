@@ -68,7 +68,7 @@ describe('tool schema', () => {
     expect(runScan!.description).toContain('matching ISO aliases')
     expect(runScan!.description).toContain('exact lowercase Binance USDT-M perpetual symbol')
     const props = (runScan!.inputSchema.properties ?? {}) as Record<string, unknown>
-    expect(Object.keys(props).sort()).toEqual(['document', 'if_none_match'])
+    expect(Object.keys(props).sort()).toEqual(['document', 'full_counts', 'if_none_match'])
   })
 
   it('snapshots each tool input shape (guards against grammar drift)', async () => {
@@ -83,9 +83,9 @@ describe('tool schema', () => {
       list_features: [],
       list_instruments: ['full', 'if_none_match', 'symbols'],
       interpret_prose: ['language', 'time_zone'],
-      run_scan: ['document', 'if_none_match'],
-      run_cohort: ['document', 'if_none_match'],
-      next_page: ['cursor', 'document', 'if_none_match'],
+      run_scan: ['document', 'full_counts', 'if_none_match'],
+      run_cohort: ['document', 'full_counts', 'if_none_match'],
+      next_page: ['cursor', 'document', 'full_counts', 'if_none_match'],
       snapshot_at: ['at', 'symbol'],
       base_rate: ['field', 'from', 'operator', 'symbol', 'to', 'value'],
       commonality: ['moments'],

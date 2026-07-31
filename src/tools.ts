@@ -205,6 +205,70 @@ function replayHandoffs(res: ApiResponse): TextBlock | null {
   )
 }
 
+/**
+ * Scan-body compaction (2026-07-30 agent-context economy). A full-universe
+ * scan's counts_by_symbol enumerates EVERY instrument including zeros (660+
+ * entries), so even page.limit 1 returns ~150 KB, most of it the literal
+ * string `"total_matching":0` repeated per symbol. Default projection: entries
+ * whose total_matching is 0 are dropped and COUNTED in a trailing note block;
+ * counts, outcomes_summary, the reproducibility key, rows and representatives
+ * are untouched. The ETag is projection-scoped (same discipline as the
+ * universe summary) so a compact ETag can never 304 against the full bytes.
+ * full_counts: true restores the engine's verbatim canonical bytes.
+ */
+export const COMPACT_TAG = 'nz'
+
+export function compactScanBody(
+  bodyText: string,
+): { bodyText: string; omitted: number } | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(bodyText)
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+  const body = parsed as Record<string, unknown>
+  const counts = body.counts_by_symbol
+  if (!counts || typeof counts !== 'object' || Array.isArray(counts)) return null
+  const kept: Record<string, unknown> = {}
+  let omitted = 0
+  for (const [sym, value] of Object.entries(counts as Record<string, unknown>)) {
+    const total = (value as Record<string, unknown> | null)?.total_matching
+    if (total === 0) {
+      omitted += 1
+      continue
+    }
+    kept[sym] = value
+  }
+  if (omitted === 0) return null
+  return { bodyText: JSON.stringify({ ...body, counts_by_symbol: kept }), omitted }
+}
+
+/** passthrough, minus the zero-count counts_by_symbol entries. Falls back to
+ *  verbatim on parse failure, non-JSON, error bodies, or when nothing would
+ *  be omitted, so the projection can only ever REMOVE stated zeros. */
+function compactPassthrough(res: ApiResponse, on304?: string): ToolResult {
+  const scopedHeaders = { ...res.headers, etag: scopeEtag(res.headers.etag, COMPACT_TAG) }
+  if (res.notModified) return passthrough({ ...res, headers: scopedHeaders }, on304)
+  if (!res.ok || !res.bodyText) return passthrough(res, on304)
+  const compact = compactScanBody(res.bodyText)
+  if (!compact) return passthrough(res, on304)
+  const result = passthrough(
+    { ...res, bodyText: compact.bodyText, headers: scopedHeaders },
+    on304,
+  )
+  result.content.push(
+    text(
+      `counts_by_symbol: ${compact.omitted} zero-count instrument(s) omitted from this ` +
+        'projection. Absence here means 0 matches, not missing data; totals and ' +
+        'outcomes_summary are computed by the engine and unaffected. Pass full_counts: true ' +
+        "for the engine's verbatim canonical bytes.",
+    ),
+  )
+  return result
+}
+
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const
 
 /** Registers the ten read-only tools on an McpServer. */
@@ -460,7 +524,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'carry full 33-feature setup vectors (~2 KB each); page.limit 50 returns ~120 KB, which ' +
         'can overflow an agent context. Counts, outcomes_summary and representatives are ' +
         'complete-result regardless of page size - set page.limit 1-5 unless you need row-level ' +
-        'evidence, then page with next_page.',
+        'evidence, then page with next_page. PROJECTION: counts_by_symbol lists only ' +
+        'instruments with at least one match; the number of zero-count instruments omitted is ' +
+        'stated in a trailing note (absence = 0 matches, not missing data). Pass ' +
+        "full_counts: true for the engine's verbatim canonical bytes with every zero entry.",
       inputSchema: {
         document: z
           .record(z.any())
@@ -475,10 +542,18 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
             'An ETag from a previous run to revalidate: identical data answers 304 and spends ' +
               'nothing. Pass it back verbatim (it may be weak, W/"...").',
           ),
+        full_counts: z
+          .boolean()
+          .optional()
+          .describe(
+            "True returns the engine's verbatim canonical bytes, including every zero-count " +
+              'instrument in counts_by_symbol (~150 KB+ for universe scans). Default omits ' +
+              'zero-count entries and states how many were omitted.',
+          ),
       },
       annotations: READ_ONLY,
     },
-    async ({ document, if_none_match }) => {
+    async ({ document, if_none_match, full_counts }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const res = await apiRequest(ctx.apiBase, {
@@ -486,9 +561,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         path: '/query',
         key,
         body: document,
-        ifNoneMatch: if_none_match,
+        // Compact mode accepts BOTH its scoped ETag (unscoped upstream) and a
+        // raw one: a raw 304 stays truthful here because the compact body is a
+        // pure function of the full bytes. (Contrast the universe projections,
+        // where a summary ETag revalidating full bytes WOULD lie - scans have
+        // no such cross-request direction: full_counts forwards verbatim and a
+        // scoped ETag never matches upstream.)
+        ifNoneMatch: full_counts
+          ? if_none_match
+          : (unscopeEtag(if_none_match, COMPACT_TAG) ?? if_none_match),
       })
-      const result = passthrough(
+      const result = (full_counts ? passthrough : compactPassthrough)(
         res,
         'Re-run the document without If-None-Match to fetch the cached bytes (still free).',
       )
@@ -510,7 +593,8 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'with it: restart from page 1. The revision is scoped to the document\'s symbols and ' +
         'window - never compare revisions across different documents. Every page ' +
         'has its own ETag and remains free, including a continuation cache miss. Complete-result ' +
-        'counts and summaries remain independent of the page rows.',
+        'counts and summaries remain independent of the page rows. Same counts_by_symbol ' +
+        'projection as run_scan; full_counts: true for verbatim bytes.',
       inputSchema: {
         document: z.record(z.any()).describe('The EXACT document from the prior run_scan.'),
         cursor: z
@@ -521,10 +605,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
             'The opaque page.cursor from the previous response. Never construct or edit it.',
           ),
         if_none_match: z.string().optional().describe('Optional ETag to revalidate this page.'),
+        full_counts: z
+          .boolean()
+          .optional()
+          .describe(
+            "True returns the engine's verbatim canonical bytes, including every zero-count " +
+              'instrument in counts_by_symbol. Default omits zero-count entries.',
+          ),
       },
       annotations: READ_ONLY,
     },
-    async ({ document, cursor, if_none_match }) => {
+    async ({ document, cursor, if_none_match, full_counts }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const doc: Record<string, unknown> = { ...(document as Record<string, unknown>) }
@@ -536,9 +627,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         path: '/query',
         key,
         body: doc,
-        ifNoneMatch: if_none_match,
+        // Compact mode accepts BOTH its scoped ETag (unscoped upstream) and a
+        // raw one: a raw 304 stays truthful here because the compact body is a
+        // pure function of the full bytes. (Contrast the universe projections,
+        // where a summary ETag revalidating full bytes WOULD lie - scans have
+        // no such cross-request direction: full_counts forwards verbatim and a
+        // scoped ETag never matches upstream.)
+        ifNoneMatch: full_counts
+          ? if_none_match
+          : (unscopeEtag(if_none_match, COMPACT_TAG) ?? if_none_match),
       })
-      return passthrough(res)
+      return (full_counts ? passthrough : compactPassthrough)(res)
     },
   )
 
@@ -775,10 +874,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
             'An ETag from a previous cohort run to revalidate: identical data answers 304 and ' +
               'spends nothing. Pass it back verbatim (it may be weak, W/"...").',
           ),
+        full_counts: z
+          .boolean()
+          .optional()
+          .describe(
+            "True returns the engine's verbatim canonical bytes, including any zero-count " +
+              'instrument in counts_by_symbol. Default omits zero-count entries when present.',
+          ),
       },
       annotations: READ_ONLY,
     },
-    async ({ document, if_none_match }) => {
+    async ({ document, if_none_match, full_counts }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const res = await apiRequest(ctx.apiBase, {
@@ -786,9 +892,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         path: '/cohort',
         key,
         body: document,
-        ifNoneMatch: if_none_match,
+        // Compact mode accepts BOTH its scoped ETag (unscoped upstream) and a
+        // raw one: a raw 304 stays truthful here because the compact body is a
+        // pure function of the full bytes. (Contrast the universe projections,
+        // where a summary ETag revalidating full bytes WOULD lie - scans have
+        // no such cross-request direction: full_counts forwards verbatim and a
+        // scoped ETag never matches upstream.)
+        ifNoneMatch: full_counts
+          ? if_none_match
+          : (unscopeEtag(if_none_match, COMPACT_TAG) ?? if_none_match),
       })
-      return passthrough(
+      return (full_counts ? passthrough : compactPassthrough)(
         res,
         'Re-run the document without If-None-Match to fetch the cached cohort bytes (still free).',
       )
