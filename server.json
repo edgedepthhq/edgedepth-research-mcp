@@ -5,8 +5,8 @@
   "description": "Search recorded crypto and TradFi microstructure through deterministic, reproducible agent tools.",
   "version": "0.2.5",
   "repository": {
-    "url": "https://gitlab.com/jtucker96/edgedepth-research-mcp",
-    "source": "gitlab"
+    "url": "https://github.com/edgedepthhq/edgedepth-research-mcp",
+    "source": "github"
   },
   "remotes": [
     {

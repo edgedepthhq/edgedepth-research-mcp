@@ -14,7 +14,7 @@ curated listing sooner. House rule: no em-dashes.
 | npm package | `@edgedepth/research-mcp` (0.1.3, MIT) |
 | One-line install | `npx -y @edgedepth/research-mcp` |
 | Remote (Streamable HTTP) | `https://mcp.edgedepth.com/mcp` |
-| Repository | `https://gitlab.com/jtucker96/edgedepth-research-mcp` |
+| Repository | `https://github.com/edgedepthhq/edgedepth-research-mcp` |
 | Docs | `https://app.edgedepth.com/research/api/mcp` |
 | Get a key | `https://app.edgedepth.com/account#api-keys` |
 | Homepage | `https://edgedepth.com` |
@@ -46,7 +46,7 @@ short description, the npm package, the repo, the remote URL, and the tags above
 
 Submit the repository (it reads the repo + npm). Fields:
 
-- Repository: `https://gitlab.com/jtucker96/edgedepth-research-mcp`
+- Repository: `https://github.com/edgedepthhq/edgedepth-research-mcp`
 - npm: `@edgedepth/research-mcp`
 - Description: the long description above.
 - Tags: crypto, tradfi, market-data, trading, research, finance, analytics.
@@ -62,7 +62,7 @@ Form fields:
 - Description: the long description above.
 - Categories: Finance, Data, Research.
 - npm: `@edgedepth/research-mcp`
-- Source code: `https://gitlab.com/jtucker96/edgedepth-research-mcp`
+- Source code: `https://github.com/edgedepthhq/edgedepth-research-mcp`
 - Remote server URL: `https://mcp.edgedepth.com/mcp`
 - Homepage / docs: `https://app.edgedepth.com/research/api/mcp`
 
@@ -84,7 +84,7 @@ The list uses a legend: language icon + service scope. This server is TypeScript
 (📇) and offers both a hosted remote (☁️) and a local stdio server (🏠):
 
 ```markdown
-- [EdgeDepth Research](https://gitlab.com/jtucker96/edgedepth-research-mcp) 📇 ☁️ 🏠 - Search recorded crypto and TradFi microstructure with deterministic agent tools: counts carry denominators, outcomes can never be filtered, and every result returns a reproducibility key.
+- [EdgeDepth Research](https://github.com/edgedepthhq/edgedepth-research-mcp) 📇 ☁️ 🏠 - Search recorded crypto and TradFi microstructure with deterministic agent tools: counts carry denominators, outcomes can never be filtered, and every result returns a reproducibility key.
 ```
 
 PR title: `Add EdgeDepth Research (market microstructure search) to Finance & Fintech`.

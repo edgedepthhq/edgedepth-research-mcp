@@ -9,7 +9,7 @@
   "homepage": "https://app.edgedepth.com/research/api/mcp",
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.com/jtucker96/edgedepth-research-mcp.git"
+    "url": "git+https://github.com/edgedepthhq/edgedepth-research-mcp.git"
   },
   "keywords": [
     "mcp",
