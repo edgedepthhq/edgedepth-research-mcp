@@ -178,6 +178,11 @@ npm run typecheck
 
 TypeScript builds to `dist/`. Example nginx locations, systemd hardening, and operator environment values live under `deploy/`. Production deployment and npm publishing remain operator actions.
 
+## Related projects
+
+- [edgedepth-terminal](https://github.com/edgedepthhq/edgedepth-terminal) (AGPL): the open-source C++/WASM orderflow terminal. Replay-linked evidence from research results opens the exact recorded market moment in it, and it self-hosts with one docker compose command.
+- [edgedepth-gateway](https://github.com/edgedepthhq/edgedepth-gateway) (MIT): a Go bridge from Binance's public streams to the terminal's wire format, for running the terminal on live data without an account.
+
 ## License
 
 MIT
