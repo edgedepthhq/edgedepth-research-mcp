@@ -506,10 +506,12 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'Execute a research_query.v2 document over the deterministic engine and return counts, ' +
         'denominators, outcomes_summary, the reproducibility key and page-1 rows as the engine\'s ' +
         'canonical bytes. outcomes_summary carries forward outcomes over FOUR horizons per ' +
-        'occurrence: 30m return, 1h MFE/MAE, and 4h and 24h return + MFE/MAE ' +
-        '(record_result.v3), with a closed threshold ladder to +/-20 pct - "how often did this ' +
-        'setup reach +5% within 24h, with how much drawdown" is answered by the summary over ' +
-        'ALL occurrences. Completeness caveat: an occurrence closer to the end of recorded ' +
+        'occurrence, each reporting the same return + MFE/MAE triple at 30m, 1h, 4h and 24h ' +
+        '(record_result.v6). The closed threshold ladder runs 1/2/5/10/15/20/30/50/100/200/400 ' +
+        'pct on the gte side and stops at -100 pct on the lte side (a return ratio cannot pass ' +
+        'total loss), so the two ladders are deliberately different lengths - "how often did ' +
+        'this setup reach +5% within 24h, with how much drawdown" and "how often did it 5X" ' +
+        'are both answered by the summary over ALL occurrences. Completeness caveat: an occurrence closer to the end of recorded ' +
         'data than a horizon has that horizon ABSENT (counted in the absent tally, never a ' +
         'truncated or implied-zero outcome) - quote present, not total_matching, as the ' +
         'denominator for any horizon rate. Document-only input: stated chips are the only ' +
@@ -521,7 +523,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'lowercase Binance USDT-M perpetual symbol: case, whitespace and separators are rejected. ' +
         ' You may rerun freely: a rerun of the same document is served from cache ' +
         '(X-Research-Cache: hit), and reruns and 304 revalidations are free. SIZE: page rows ' +
-        'carry full 33-feature setup vectors (~2 KB each); page.limit 50 returns ~120 KB, which ' +
+        'carry full 39-feature setup vectors (~2 KB each); page.limit 50 returns ~120 KB, which ' +
         'can overflow an agent context. Counts, outcomes_summary and representatives are ' +
         'complete-result regardless of page size - set page.limit 1-5 unless you need row-level ' +
         'evidence, then page with next_page. PROJECTION: counts_by_symbol lists only ' +
