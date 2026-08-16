@@ -507,7 +507,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'denominators, outcomes_summary, the reproducibility key and page-1 rows as the engine\'s ' +
         'canonical bytes. outcomes_summary carries forward outcomes over FOUR horizons per ' +
         'occurrence, each reporting the same return + MFE/MAE triple at 30m, 1h, 4h and 24h ' +
-        '(record_result.v6). The closed threshold ladder runs 1/2/5/10/15/20/30/50/100/200/400 ' +
+        '(record_result.v6). The closed threshold ladder runs 0.1/0.2/0.5/1/2/5/10/15/20/30/50/100/200/400 ' +
         'pct on the gte side and stops at -100 pct on the lte side (a return ratio cannot pass ' +
         'total loss), so the two ladders are deliberately different lengths - "how often did ' +
         'this setup reach +5% within 24h, with how much drawdown" and "how often did it 5X" ' +
