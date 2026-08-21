@@ -914,4 +914,77 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       )
     },
   )
+
+  // 10. run_stratified - the fixed-anchor setup stratification
+  //     (stratified_result.v3). ONE population, split THREE ways at the
+  //     population's own anchors. This is the tool that answers "is this
+  //     finding really just <other condition>?" without moving an anchor.
+  //
+  //     No compact projection here: stratified_result carries aggregate
+  //     counts and per-stratum summaries, and no counts_by_symbol map for
+  //     compactScanBody to thin, so the bytes forward verbatim.
+  server.registerTool(
+    'run_stratified',
+    {
+      title: 'Split one population three ways at its own anchors',
+      description:
+        'Execute a stratified_query.v1 wrapper and return canonical stratified_result.v3 bytes. ' +
+        'The wrapper embeds ONE ordinary research_query.v2 population document plus ONE ' +
+        'setup-time split predicate: {"schema_version":"stratified_query.v1","population":{...},' +
+        '"split":{"where":{"all":[[field,op,value]]},"observation":{"relative_to":"population_anchor"}}}. ' +
+        'The population is evaluated exactly once, and its immutable edge-triggered PT1H-deduped ' +
+        'anchors are then classified AT THOSE EXACT TIMESTAMPS into split_true, split_false and ' +
+        'split_absent, each carrying the same 30m/1h/4h/24h return + MFE/MAE summary. ' +
+        'THE SPLIT NEVER CREATES AN EDGE AND NEVER MOVES AN ANCHOR, which is why this is not the ' +
+        'same as running two scans and differencing them by hand: both strata are the SAME ' +
+        'occurrences, partitioned. Use it to test whether a result is confounded, for example ' +
+        'splitting a vpin finding on feature.realized_vol_pctrank to see whether the effect is ' +
+        'just high volatility, or on feature.vpin_regime, feature.funding_norm or ' +
+        'feature.spread_norm. split_absent is a real third answer (the split feature had no ' +
+        'reading at that anchor) and is never folded into false. ' +
+        'Split clauses are setup-time feature.* or window.* ids only, 1 to 6 of them; a split ' +
+        'sequence is refused with 422 STRATIFIED_SPLIT_SEQUENCE_UNSUPPORTED and a population ' +
+        'page cursor with 422 STRATIFIED_CURSOR_UNSUPPORTED. The result carries NO occurrence ' +
+        'page by design: it is summaries and denominators. Every stratum honours the ' +
+        'completeness rule, so an anchor closer to the end of recorded data than a horizon has ' +
+        'that horizon ABSENT: quote present, not total, as the denominator. ' +
+        'CONTRACT (relay to the user): ' +
+        CONFIRM_GATE_CONTRACT +
+        ' A rerun of the same wrapper is served from cache (X-Research-Cache: hit) in its own ' +
+        'stratified namespace; reruns and 304 revalidations are free.',
+      inputSchema: {
+        document: z
+          .record(z.any())
+          .describe(
+            'A complete stratified_query.v1 wrapper: schema_version, population (a ' +
+              'research_query.v2 document, target record_occurrences) and split. Call ' +
+              'list_features for the population grammar and for the ids usable as split ' +
+              'fields; do not invent field names.',
+          ),
+        if_none_match: z
+          .string()
+          .optional()
+          .describe(
+            'An ETag from a previous stratified run to revalidate: identical data answers 304 ' +
+              'and spends nothing. Pass it back verbatim (it may be weak, W/"...").',
+          ),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ document, if_none_match }) => {
+      const key = ctx.getKey()
+      if (!key) return noKey()
+      const res = await apiRequest(ctx.apiBase, {
+        method: 'POST',
+        path: '/stratified',
+        key,
+        body: document,
+        ifNoneMatch: if_none_match,
+      })
+      return passthrough(
+        res,
+        'Re-run the wrapper without If-None-Match to fetch the cached stratified bytes (still free).',
+      )
+    },
+  )
 }
