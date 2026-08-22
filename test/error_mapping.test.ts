@@ -361,12 +361,23 @@ describe('client-serialization repair + universe sizing (0.2.2)', () => {
       {
         symbol: 'btcusdt',
         availability_status: 'present',
+        underlying_type: 'COIN',
+        tradfi: false,
         feature_availability: { present_partition_days: 72, excluded_partition_days: 0 },
       },
       {
         symbol: '0gusdt',
         availability_status: 'partial',
+        underlying_type: 'COIN',
+        tradfi: false,
         feature_availability: { present_partition_days: 51, excluded_partition_days: 21 },
+      },
+      {
+        symbol: 'nvdausdt',
+        availability_status: 'present',
+        underlying_type: 'EQUITY',
+        tradfi: true,
+        feature_availability: { present_partition_days: 40, excluded_partition_days: 0 },
       },
     ],
     notes: ['Coverage.to is exclusive.'],
@@ -381,11 +392,43 @@ describe('client-serialization repair + universe sizing (0.2.2)', () => {
     const blocks = texts(result as { content: unknown })
     const summary = JSON.parse(blocks[1]) as Record<string, unknown>
     expect(summary.projection).toBe('summary')
-    expect(summary.instrument_count).toBe(2)
-    expect(summary.by_availability_status).toEqual({ present: 1, partial: 1 })
+    expect(summary.instrument_count).toBe(3)
+    expect(summary.by_availability_status).toEqual({ present: 2, partial: 1 })
     expect(summary.dataset_revision).toBe('rev1')
     expect(summary.instruments_with_excluded_days).toBe(1)
     expect(blocks[1]).not.toContain('"instruments":[')
+  })
+
+  // universe_result.v2. The summary is the DEFAULT projection, so if the
+  // session-bound share is not in it, the only way to learn that a quarter of
+  // the universe has exchange hours is to pull the full 360 KB body, and
+  // nobody does that before quoting a universe-wide statistic.
+  it('list_instruments summary carries the TradFi split', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(UNIVERSE, { status: 200, headers: { etag: 'W/"uni"' } }),
+    )
+    const client = await connectClient()
+    const result = await client.callTool({ name: 'list_instruments', arguments: {} })
+    const summary = JSON.parse(texts(result as { content: unknown })[1]) as Record<string, unknown>
+    expect(summary.tradfi_count).toBe(1)
+    expect(summary.by_underlying_type).toEqual({ COIN: 2, EQUITY: 1 })
+  })
+
+  it('list_instruments summary counts a missing underlying_type as unknown', async () => {
+    const legacy = JSON.stringify({
+      universe_encoding: 'universe_result.v2',
+      dataset_revision: 'rev1',
+      instruments: [{ symbol: 'goneusdt', availability_status: 'present' }],
+      notes: [],
+    })
+    fetchMock.mockResolvedValueOnce(
+      new Response(legacy, { status: 200, headers: { etag: 'W/"uni2"' } }),
+    )
+    const client = await connectClient()
+    const result = await client.callTool({ name: 'list_instruments', arguments: {} })
+    const summary = JSON.parse(texts(result as { content: unknown })[1]) as Record<string, unknown>
+    expect(summary.by_underlying_type).toEqual({ unknown: 1 })
+    expect(summary.tradfi_count).toBe(0)
   })
 
   it('list_instruments symbols filter returns only the requested records + misses', async () => {

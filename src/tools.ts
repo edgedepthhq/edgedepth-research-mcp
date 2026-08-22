@@ -315,9 +315,14 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'Pass symbols: ["btcusdt", ...] for the complete canonical records of specific ' +
         'instruments (per-instrument coverage, present/excluded partition counts, provenance, ' +
         'replay entitlement). Pass full: true for the verbatim canonical bytes of the whole ' +
-        'universe. Excluded symbol-days remain visible as universe membership. NVDAUSDT and ' +
-        'QQQUSDT are Binance USDT-M perpetuals referencing TradFi assets, not direct Nasdaq ' +
-        'data. This read is deterministic and free in every mode.',
+        'universe. Excluded symbol-days remain visible as universe membership. ' +
+        'IMPORTANT: about a quarter of the universe (170 of 744 symbols as of 2026-08-22) are ' +
+        'TRADIFI_PERPETUAL contracts referencing listed equities, commodities or indices, NOT ' +
+        'direct exchange data. Their underlying trades only during its exchange session while ' +
+        'the perp trades continuously, so they are dormant off-session and wake together at the ' +
+        'open. Every instrument carries `tradfi` and `underlying_type`, and the summary carries ' +
+        'tradfi_count and by_underlying_type: filter on `tradfi` before quoting any ' +
+        'universe-wide statistic. This read is deterministic and free in every mode.',
       inputSchema: {
         symbols: z
           .union([z.string(), z.array(z.string())])
@@ -376,6 +381,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       interface UniverseInstrument {
         symbol?: string
         availability_status?: string
+        // universe_result.v2 (2026-08-22). 170 of 744 trading symbols track an
+        // underlying with SESSION HOURS, so these decide whether a
+        // universe-wide statistic means anything.
+        underlying_type?: string
+        tradfi?: boolean
         feature_availability?: { present_partition_days?: number; excluded_partition_days?: number }
       }
       let body: {
@@ -418,12 +428,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       }
 
       const byStatus: Record<string, number> = {}
+      const byUnderlyingType: Record<string, number> = {}
+      let tradfiCount = 0
       let presentDaysMin: number | null = null
       let presentDaysMax: number | null = null
       let withExcludedDays = 0
       for (const instrument of instruments) {
         const status = instrument.availability_status ?? 'unknown'
         byStatus[status] = (byStatus[status] ?? 0) + 1
+        const underlying = instrument.underlying_type ?? 'unknown'
+        byUnderlyingType[underlying] = (byUnderlyingType[underlying] ?? 0) + 1
+        if (instrument.tradfi === true) tradfiCount++
         const present = instrument.feature_availability?.present_partition_days
         if (typeof present === 'number') {
           presentDaysMin = presentDaysMin === null ? present : Math.min(presentDaysMin, present)
@@ -442,6 +457,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         coverage: body.coverage,
         instrument_count: instruments.length,
         by_availability_status: byStatus,
+        // The default projection has to carry these, otherwise the only way to
+        // learn that a quarter of the universe is session-bound is to pull the
+        // full 360 KB body, and nobody does that before quoting a statistic.
+        tradfi_count: tradfiCount,
+        by_underlying_type: byUnderlyingType,
         present_partition_days: { min: presentDaysMin, max: presentDaysMax },
         instruments_with_excluded_days: withExcludedDays,
         notes: body.notes,
