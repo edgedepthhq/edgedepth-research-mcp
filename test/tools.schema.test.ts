@@ -42,7 +42,7 @@ describe('release identity is consistent', () => {
 })
 
 describe('tool schema', () => {
-  it('exposes exactly the ten read-only tools', async () => {
+  it('exposes exactly the eleven read-only tools', async () => {
     const client = await connectClient()
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -55,6 +55,7 @@ describe('tool schema', () => {
       'next_page',
       'run_cohort',
       'run_scan',
+      'run_stratified',
       'snapshot_at',
     ])
   })
@@ -85,6 +86,7 @@ describe('tool schema', () => {
       interpret_prose: ['language', 'time_zone'],
       run_scan: ['document', 'full_counts', 'if_none_match'],
       run_cohort: ['document', 'full_counts', 'if_none_match'],
+      run_stratified: ['document', 'if_none_match'],
       next_page: ['cursor', 'document', 'full_counts', 'if_none_match'],
       snapshot_at: ['at', 'symbol'],
       base_rate: ['field', 'from', 'operator', 'symbol', 'to', 'value'],
