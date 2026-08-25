@@ -11,8 +11,8 @@ Official references:
 ## Release order
 
 1. Deploy the web API change first. Confirm `POST https://app.edgedepth.com/api/v1/research/baseline` reaches the new key-authenticated, free baseline route rather than 404.
-2. Publish and deploy MCP version 0.3.0, including the two exact Nginx well-known locations in `deploy/nginx-mcp-oauth-locations.conf`.
-3. Verify `GET /healthz`, `GET /.well-known/glama.json`, and `GET /.well-known/oauth-protected-resource/mcp` on `mcp.edgedepth.com`.
+2. Publish and deploy MCP version 0.3.0, keeping all four exact Nginx well-known locations in `deploy/nginx-mcp-oauth-locations.conf`.
+3. Verify `GET /healthz`, `GET /.well-known/glama.json`, and `GET /.well-known/oauth-protected-resource/mcp` on `mcp.edgedepth.com`. Before the portal issues a token, verify `GET /.well-known/openai-apps-challenge` returns 404 rather than Nginx's dot-file 403.
 4. In the OpenAI Platform organization, confirm the publisher identity is verified and the submitter has Apps Management write access.
 5. Create a new submission with **With MCP**, URL type **Universal**, and `https://mcp.edgedepth.com/mcp`.
 6. When the portal issues its domain token, put the exact value in `OPENAI_APPS_CHALLENGE_TOKEN` on the MCP service, restart it, and verify the challenge URL returns only that token as plain text.
