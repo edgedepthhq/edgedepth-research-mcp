@@ -35,6 +35,7 @@ describe('release identity is consistent', () => {
     const pkg = read('package.json')
     const server = read('server.json')
     expect(server.version).toBe(pkg.version)
+    expect(String(server.description).length).toBeLessThanOrEqual(100)
     for (const entry of server.packages as { version?: string }[]) {
       expect(entry.version).toBe(pkg.version)
     }

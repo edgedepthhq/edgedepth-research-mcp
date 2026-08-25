@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "com.edgedepth/research",
   "title": "EdgeDepth Research",
-  "description": "Test historical crypto and TradFi-perpetual microstructure claims against recorded evidence with counts, denominators, references, and replay.",
+  "description": "Test crypto and TradFi-perpetual claims using recorded counts, baselines, and replay.",
   "version": "0.3.0",
   "repository": {
     "url": "https://github.com/edgedepthhq/edgedepth-research-mcp",
