@@ -11,6 +11,7 @@ import {
 
 afterEach(() => {
   delete process.env.MCP_INTERNAL_SECRET
+  delete process.env.OPENAI_APPS_CHALLENGE_TOKEN
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -49,6 +50,29 @@ describe('hosted MCP OAuth resource server', () => {
     expect(response.status).toBe(200)
     expect(JSON.parse(response.body)).toEqual(protectedResourceMetadata())
     expect(JSON.parse(response.body).resource).toBe('https://mcp.edgedepth.com/mcp')
+  })
+
+  it('publishes the hosted Glama ownership document', async () => {
+    const response = await request(createHttpApp(), '/.well-known/glama.json')
+    expect(response.status).toBe(200)
+    expect(JSON.parse(response.body)).toEqual({
+      $schema: 'https://glama.ai/mcp/schemas/server.json',
+      maintainers: ['jtucker96'],
+    })
+  })
+
+  it('keeps the OpenAI challenge dark until the portal issues a token', async () => {
+    const response = await request(createHttpApp(), '/.well-known/openai-apps-challenge')
+    expect(response.status).toBe(404)
+    expect(response.body).toBe('')
+  })
+
+  it('serves only the exact OpenAI domain-verification token', async () => {
+    process.env.OPENAI_APPS_CHALLENGE_TOKEN = 'openai-verification-token'
+    const response = await request(createHttpApp(), '/.well-known/openai-apps-challenge')
+    expect(response.status).toBe(200)
+    expect(response.headers['content-type']).toContain('text/plain')
+    expect(response.body).toBe('openai-verification-token')
   })
 
   it('challenges an unauthenticated MCP request with resource metadata', async () => {

@@ -40,6 +40,13 @@ function scanBody(): string {
   })
 }
 
+function baselineResponse(): Response {
+  return new Response(
+    JSON.stringify({ baseline_encoding: 'baseline_result.v1', counts: { baseline_buckets: 100 } }),
+    { status: 200 },
+  )
+}
+
 describe('compactScanBody (unit)', () => {
   it('drops only zero-count entries and counts them', () => {
     const compact = compactScanBody(scanBody())
@@ -67,12 +74,14 @@ describe('compactScanBody (unit)', () => {
 
 describe('run_scan projection (end to end)', () => {
   it('compacts by default, states the omission, and scopes the ETag', async () => {
-    fetchMock.mockResolvedValueOnce(
-      new Response(scanBody(), {
-        status: 200,
-        headers: { 'content-type': 'application/json', etag: 'W/"abc"' },
-      }),
-    )
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(scanBody(), {
+          status: 200,
+          headers: { 'content-type': 'application/json', etag: 'W/"abc"' },
+        }),
+      )
+      .mockResolvedValueOnce(baselineResponse())
     const client = await connectClient()
     const res = await client.callTool({ name: 'run_scan', arguments: { document: DOCUMENT } })
     const blocks = texts(res)
@@ -95,12 +104,14 @@ describe('run_scan projection (end to end)', () => {
 
   it('full_counts: true returns verbatim bytes with the raw ETag', async () => {
     const raw = scanBody()
-    fetchMock.mockResolvedValueOnce(
-      new Response(raw, {
-        status: 200,
-        headers: { 'content-type': 'application/json', etag: 'W/"abc"' },
-      }),
-    )
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(raw, {
+          status: 200,
+          headers: { 'content-type': 'application/json', etag: 'W/"abc"' },
+        }),
+      )
+      .mockResolvedValueOnce(baselineResponse())
     const client = await connectClient()
     const res = await client.callTool({
       name: 'run_scan',
@@ -112,8 +123,10 @@ describe('run_scan projection (end to end)', () => {
   })
 
   it('unscopes a compact ETag before revalidating upstream, and forwards a raw one verbatim', async () => {
-    fetchMock.mockResolvedValue(
-      new Response(scanBody(), { status: 200, headers: { etag: 'W/"abc"' } }),
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response(scanBody(), { status: 200, headers: { etag: 'W/"abc"' } }),
+      ),
     )
     const client = await connectClient()
 
@@ -131,7 +144,7 @@ describe('run_scan projection (end to end)', () => {
       name: 'run_scan',
       arguments: { document: DOCUMENT, if_none_match: 'W/"abc"' },
     })
-    ;[, init] = fetchMock.mock.calls[1] as [string, RequestInit]
+    ;[, init] = fetchMock.mock.calls[2] as [string, RequestInit]
     expect((init.headers as Record<string, string>)['if-none-match']).toBe('W/"abc"')
   })
 
@@ -149,9 +162,11 @@ describe('run_scan projection (end to end)', () => {
       counts: { total_matching: 5 },
       counts_by_symbol: { btcusdt: { total_matching: 5 } },
     })
-    fetchMock.mockResolvedValueOnce(
-      new Response(raw, { status: 200, headers: { etag: 'W/"one"' } }),
-    )
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(raw, { status: 200, headers: { etag: 'W/"one"' } }),
+      )
+      .mockResolvedValueOnce(baselineResponse())
     const client = await connectClient()
     const res = await client.callTool({ name: 'run_scan', arguments: { document: DOCUMENT } })
     const blocks = texts(res)

@@ -74,12 +74,48 @@ describe('run_scan validation passthrough', () => {
         },
       ],
     })
-    fetchMock.mockResolvedValueOnce(new Response(body, { status: 200 }))
+    const baselineBody = JSON.stringify({
+      baseline_encoding: 'baseline_result.v1',
+      counts: { baseline_buckets: 1000 },
+    })
+    fetchMock
+      .mockResolvedValueOnce(new Response(body, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(baselineBody, {
+          status: 200,
+          headers: { 'X-Baseline-Scope-Hash': 'scope0011223344' },
+        }),
+      )
     const client = await connectClient()
     const res = await client.callTool({ name: 'run_scan', arguments: { document: {} } })
     const blocks = texts(res)
     expect(blocks).toContain(body)
+    expect(blocks.join('\n')).toContain('unconditional_same_scope_reference')
+    expect(blocks.join('\n')).toContain('baseline_scope_hash=scope0011223344')
+    expect(blocks.join('\n')).toContain(baselineBody)
     expect(blocks.join('\n')).toContain('https://app.edgedepth.com/terminal?')
     expect(blocks.join('\n')).toContain('marker=rq%3Aabcdef01')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(String(fetchMock.mock.calls[1][0])).toBe('http://api.test/api/v1/research/baseline')
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toEqual({})
+  })
+
+  it('keeps a successful scan valid when the best-effort baseline is unavailable', async () => {
+    const body = JSON.stringify({ counts: { total_matching: 2 } })
+    fetchMock
+      .mockResolvedValueOnce(new Response(body, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: 'not deployed', code: 'FEATURE_DISABLED' }), {
+          status: 404,
+        }),
+      )
+
+    const client = await connectClient()
+    const res = await client.callTool({ name: 'run_scan', arguments: { document: {} } })
+    expect(res.isError).not.toBe(true)
+    expect(texts(res)).toContain(body)
+    expect(texts(res).join('\n')).toContain(
+      'unavailable (FEATURE_DISABLED). The historical scan result remains valid',
+    )
   })
 })

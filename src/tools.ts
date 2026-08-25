@@ -1,8 +1,8 @@
 /**
  * tools - the one tool core (design doc RESEARCH_API_MCP_DESIGN
- * 2026-07-18 section 3.3, FROZEN). Ten read-only tools, each a thin
+ * 2026-07-18 section 3.3, FROZEN). Eleven research tools, each a thin
  * wrapper over the phase-A/B REST surface. No definitions, no alerts,
- * no publish - read-only v1.
+ * no publish - research-only v1.
  *
  * Contract discipline enforced here:
  *  - result bytes pass through VERBATIM (passthrough()); the API's
@@ -129,6 +129,7 @@ function metaLine(res: ApiResponse): string {
   if (h.cache) parts.push(`cache=${h.cache}`)
   if (h.etag) parts.push(`etag=${h.etag}`)
   if (h.canonicalQueryHash) parts.push(`canonical_query_hash=${h.canonicalQueryHash}`)
+  if (h.baselineScopeHash) parts.push(`baseline_scope_hash=${h.baselineScopeHash}`)
   if (h.datasetRevision) parts.push(`dataset_revision=${h.datasetRevision}`)
   if (h.featureVer) parts.push(`feature_version=${h.featureVer}`)
   if (h.rulebookVersion) parts.push(`rulebook_version=${h.rulebookVersion}`)
@@ -205,6 +206,32 @@ function replayHandoffs(res: ApiResponse): TextBlock | null {
   )
 }
 
+/** The baseline is useful context, not a precondition for a valid scan. Keep
+ *  its bytes in a separately labelled block and make every failure explicitly
+ *  non-fatal. Never describe this unconditional population as comparable. */
+function baselineReference(res: ApiResponse): TextBlock {
+  if (!res.ok || res.notModified || !res.bodyText) {
+    let code = `HTTP_${res.status}`
+    try {
+      const parsed = JSON.parse(res.bodyText) as { code?: unknown; error?: { code?: unknown } }
+      const candidate = parsed.code ?? parsed.error?.code
+      if (typeof candidate === 'string') code = candidate
+    } catch {
+      // Keep the transport status when the error body is not JSON.
+    }
+    return text(
+      'unconditional_same_scope_reference: unavailable (' +
+        `${code}). The historical scan result remains valid; do not invent a reference rate.`,
+    )
+  }
+  return text(
+    'unconditional_same_scope_reference:\n' +
+      'This reference is unconditional over the same symbols and window. It is not matched, ' +
+      'comparable, or a causal control.\n' +
+      `${metaLine(res)}\n${res.bodyText}`,
+  )
+}
+
 /**
  * Scan-body compaction (2026-07-30 agent-context economy). A full-universe
  * scan's counts_by_symbol enumerates EVERY instrument including zeros (660+
@@ -269,9 +296,23 @@ function compactPassthrough(res: ApiResponse, on304?: string): ToolResult {
   return result
 }
 
-const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const
+const CLOSED_READ = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: false,
+} as const
+const EXTERNAL_READ = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
+} as const
+const METERED_COMPUTE = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  openWorldHint: false,
+} as const
 
-/** Registers the ten read-only tools on an McpServer. */
+/** Registers the eleven research tools on an McpServer. */
 export function registerResearchTools(server: McpServer, ctx: ToolContext): void {
   // 1. list_features - the grounding tool.
   server.registerTool(
@@ -279,13 +320,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'List research features (the grammar registry)',
       description:
-        'Return the closed registry for the pinned feature_version: every feature id with its ' +
-        'dtype and range, the operators, window aggregates and durations, sequence rules, limits, ' +
-        'sort fields, and the machine-readable validation and transport error-code lists. Call ' +
-        'this FIRST: a document that only uses ids from here cannot invent field names. The ' +
-        'registry is ETag-revalidated on every read, so additive feature ids become visible to ' +
-        'long-running agents without inventing or hard-coding fields.',
-      annotations: READ_ONLY,
+        'Use this when you need the valid EdgeDepth query grammar, supported feature ids, ' +
+        'operators, windows, limits, or machine-actionable error codes before constructing or ' +
+        'repairing a query document. Do not use this to answer a market question; it returns ' +
+        'capabilities, not historical evidence. This is a free deterministic read.',
+      annotations: CLOSED_READ,
     },
     async () => {
       const key = ctx.getKey()
@@ -309,20 +348,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'List research instruments and coverage',
       description:
-        'Return the authoritative feature-store universe derived from complete manifests. ' +
-        'DEFAULT: a compact deterministic summary (coverage window, dataset revision, instrument ' +
-        'counts by availability status) - the full body is ~360 KB and overflows agent contexts. ' +
-        'Pass symbols: ["btcusdt", ...] for the complete canonical records of specific ' +
-        'instruments (per-instrument coverage, present/excluded partition counts, provenance, ' +
-        'replay entitlement). Pass full: true for the verbatim canonical bytes of the whole ' +
-        'universe. Excluded symbol-days remain visible as universe membership. ' +
-        'IMPORTANT: about a quarter of the universe (170 of 744 symbols as of 2026-08-22) are ' +
-        'TRADIFI_PERPETUAL contracts referencing listed equities, commodities or indices, NOT ' +
-        'direct exchange data. Their underlying trades only during its exchange session while ' +
-        'the perp trades continuously, so they are dormant off-session and wake together at the ' +
-        'open. Every instrument carries `tradfi` and `underlying_type`, and the summary carries ' +
-        'tradfi_count and by_underlying_type: filter on `tradfi` before quoting any ' +
-        'universe-wide statistic. This read is deterministic and free in every mode.',
+        'Use this when you need to verify supported symbols, recorded coverage, data availability, ' +
+        'or whether an instrument is a session-bound TradFi perpetual before running or describing ' +
+        'research. Use symbols for selected full records; use full only when canonical whole-universe ' +
+        'bytes are required. Do not use this for live prices or historical outcomes. This is a free ' +
+        'deterministic read.',
       inputSchema: {
         symbols: z
           .union([z.string(), z.array(z.string())])
@@ -344,7 +374,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               '(full/summary/symbols). An ETag from a different mode never matches.',
           ),
       },
-      annotations: READ_ONLY,
+      annotations: CLOSED_READ,
     },
     async ({ symbols, full, if_none_match }) => {
       const key = ctx.getKey()
@@ -476,12 +506,12 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'Interpret prose into a proposed research document',
       description:
-        'Turn a plain-language market question into a PROPOSED research_query.v2 document. The ' +
-        'result is a proposal, not a result: it is labeled proposal:true and is never executed ' +
-        'here. Show the document (plus any unsupported[] stand-ins and clarify notices) to the ' +
-        'user, then call run_scan with the document to execute. That second call is the confirm ' +
-        'gate. Requires the research:interpret scope and is metered separately (each call spends ' +
-        'provider money).',
+        'Use this when the user asks a historical market-microstructure question in prose and no ' +
+        'exact query document exists. It returns a proposed research_query.v2 document, unsupported ' +
+        'fragments, and clarification notices; it never runs the scan. Show the exact proposal, then ' +
+        'call run_scan only after confirmation. Do not use this for live quotes, trading advice, ' +
+        'trade execution, or when the caller already supplied an exact document. This free proposal ' +
+        'step uses the configured external language interpreter.',
       inputSchema: {
         language: z
           .string()
@@ -502,7 +532,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               '"June 7 UTC" overrides this default. Abbreviations such as CST are rejected.',
           ),
       },
-      annotations: READ_ONLY,
+      annotations: EXTERNAL_READ,
     },
     async ({ language, time_zone }) => {
       const key = ctx.getKey()
@@ -523,33 +553,18 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'Run a research scan (record_occurrences)',
       description:
-        'Execute a research_query.v2 document over the deterministic engine and return counts, ' +
-        'denominators, outcomes_summary, the reproducibility key and page-1 rows as the engine\'s ' +
-        'canonical bytes. outcomes_summary carries forward outcomes over FOUR horizons per ' +
-        'occurrence, each reporting the same return + MFE/MAE triple at 30m, 1h, 4h and 24h ' +
-        '(record_result.v6). The closed threshold ladder runs 0.1/0.2/0.5/1/2/5/10/15/20/30/50/100/200/400 ' +
-        'pct on the gte side and stops at -100 pct on the lte side (a return ratio cannot pass ' +
-        'total loss), so the two ladders are deliberately different lengths - "how often did ' +
-        'this setup reach +5% within 24h, with how much drawdown" and "how often did it 5X" ' +
-        'are both answered by the summary over ALL occurrences. Completeness caveat: an occurrence closer to the end of recorded ' +
-        'data than a horizon has that horizon ABSENT (counted in the absent tally, never a ' +
-        'truncated or implied-zero outcome) - quote present, not total_matching, as the ' +
-        'denominator for any horizon rate. Document-only input: stated chips are the only ' +
-        'input the scan path accepts (use interpret_prose first if you have prose, then ' +
-        're-submit its document). CONTRACT (relay to the user): ' +
+        'Use this when an exact research_query.v2 document has been confirmed and the user wants ' +
+        'historical occurrences and what followed. It returns the exact definition, counts with ' +
+        'denominators, forward outcomes over all matches, an unconditional same-scope reference ' +
+        'baseline when available, a reproducibility key, and replay-linked representatives. Read ' +
+        'rates from outcomes_summary and use each horizon\'s present count as its denominator. Do not ' +
+        'use this for live quotes, personalized buy/sell advice, trade execution, prose ' +
+        'interpretation, or outcome filtering. ' +
         CONFIRM_GATE_CONTRACT +
-        ' sequence.within accepts 15m/30m/1h/4h/12h/24h and the matching ISO aliases; ' +
-        'both normalize to canonical ISO before hashing. identity.symbol must be an exact ' +
-        'lowercase Binance USDT-M perpetual symbol: case, whitespace and separators are rejected. ' +
-        ' You may rerun freely: a rerun of the same document is served from cache ' +
-        '(X-Research-Cache: hit), and reruns and 304 revalidations are free. SIZE: page rows ' +
-        'carry full 39-feature setup vectors (~2 KB each); page.limit 50 returns ~120 KB, which ' +
-        'can overflow an agent context. Counts, outcomes_summary and representatives are ' +
-        'complete-result regardless of page size - set page.limit 1-5 unless you need row-level ' +
-        'evidence, then page with next_page. PROJECTION: counts_by_symbol lists only ' +
-        'instruments with at least one match; the number of zero-count instruments omitted is ' +
-        'stated in a trailing note (absence = 0 matches, not missing data). Pass ' +
-        "full_counts: true for the engine's verbatim canonical bytes with every zero entry.",
+        ' sequence.within accepts 15m/30m/1h/4h/12h/24h and the matching ISO aliases. ' +
+        'identity.symbol must be an exact lowercase Binance USDT-M perpetual symbol. A fresh ' +
+        'initial scan can consume research allowance units; cache hits, continuations, reruns, and ' +
+        '304 revalidations are free.',
       inputSchema: {
         document: z
           .record(z.any())
@@ -573,7 +588,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               'zero-count entries and states how many were omitted.',
           ),
       },
-      annotations: READ_ONLY,
+      annotations: METERED_COMPUTE,
     },
     async ({ document, if_none_match, full_counts }) => {
       const key = ctx.getKey()
@@ -593,10 +608,20 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           ? if_none_match
           : (unscopeEtag(if_none_match, COMPACT_TAG) ?? if_none_match),
       })
+      const baseline =
+        res.ok && !res.notModified
+          ? await apiRequest(ctx.apiBase, {
+              method: 'POST',
+              path: '/baseline',
+              key,
+              body: document,
+            })
+          : null
       const result = (full_counts ? passthrough : compactPassthrough)(
         res,
         'Re-run the document without If-None-Match to fetch the cached bytes (still free).',
       )
+      if (baseline) result.content.push(baselineReference(baseline))
       const handoffs = replayHandoffs(res)
       if (handoffs) result.content.push(handoffs)
       return result
@@ -609,14 +634,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'Fetch the next page of a prior scan',
       description:
-        'Continue a prior run_scan by re-sending the SAME document with the opaque cursor from ' +
-        'the previous response. Never construct cursors. If X-Dataset-Revision changed since page ' +
-        '1, the data under THIS document changed (e.g. the nightly append) and the result set ' +
-        'with it: restart from page 1. The revision is scoped to the document\'s symbols and ' +
-        'window - never compare revisions across different documents. Every page ' +
-        'has its own ETag and remains free, including a continuation cache miss. Complete-result ' +
-        'counts and summaries remain independent of the page rows. Same counts_by_symbol ' +
-        'projection as run_scan; full_counts: true for verbatim bytes.',
+        'Use this when a prior run_scan returned an opaque page cursor and more occurrence rows are ' +
+        'needed. Re-send the exact document and cursor; if its dataset revision changed, restart at ' +
+        'page 1. Do not use this with a constructed or edited cursor, for a different document, or to infer rates ' +
+        'from page rows. Continuations are free.',
       inputSchema: {
         document: z.record(z.any()).describe('The EXACT document from the prior run_scan.'),
         cursor: z
@@ -635,7 +656,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               'instrument in counts_by_symbol. Default omits zero-count entries.',
           ),
       },
-      annotations: READ_ONLY,
+      annotations: CLOSED_READ,
     },
     async ({ document, cursor, if_none_match, full_counts }) => {
       const key = ctx.getKey()
@@ -669,23 +690,18 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'Read the registry as-of a moment',
       description:
-        'Read the engine registry AS-OF the grid bucket containing a moment: every feature value, ' +
-        'the closed-list window aggregates, and the fired rulebook ids, as the engine\'s canonical ' +
-        'bytes. A read, never a scan (not credit-metered). Use it to turn one observed moment into ' +
-        'candidate clauses, then run_scan to find every other time it looked like that. Selection ' +
-        'discipline: if you picked the moment because it moved, expect the follow-up scan to ' +
-        'deflate over all occurrences. That is the product working. ' +
-        'TIERS (2026-07-31): reading the CURRENT minute is free on every key. Reading a PAST ' +
-        'minute is a Pro feature and answers 403 GRANT_REQUIRED on a free account - the record ' +
-        'is the paid part, and the error body carries the upgrade URL. Ask for the present when ' +
-        'you only need what is true now; ask for a past minute when you need the record.',
+        'Use this when you need the recorded feature values, window aggregates, and fired rulebook ' +
+        'ids at one exact symbol-time, often to turn an observed moment into candidate scan clauses. ' +
+        'Do not use this to find similar moments, compute outcomes, or infer that a selected moment ' +
+        'is typical. Current-minute reads are available on every key; past-minute reads require the ' +
+        'corresponding account entitlement.',
       inputSchema: {
         symbol: z.string().describe('Lowercase perp, e.g. btcusdt.'),
         at: z
           .string()
           .describe('An RFC3339 datetime; the engine floors it to the grid bucket that contains it.'),
       },
-      annotations: READ_ONLY,
+      annotations: CLOSED_READ,
     },
     async ({ symbol, at }) => {
       const key = ctx.getKey()
@@ -706,16 +722,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'Base rate of a single condition',
       description:
-        'Measure how often a SINGLE stated condition is true over all eligible symbol-minute ' +
-        'buckets in a window. base_rate_result.v1 reports predicate_true_buckets, ' +
-        'predicate_false_buckets, eligible_buckets, absent_or_ineligible_buckets and true ' +
-        'prevalence globally and per symbol. This is not a count of false-to-true occurrence ' +
-        'episodes and computes no forward outcomes. Missing values are excluded from eligible, ' +
-        'never coerced to false or zero. Deterministic and free, including reruns. field, ' +
-        'operator and value must be grammar-valid (see list_features); expect the 422 contract ' +
-        'code verbatim ' +
-        'if not. The assembled one-clause document is echoed back so you can show the user ' +
-        'exactly what ran.',
+        'Use this when the user asks how common one exact condition was across eligible ' +
+        'symbol-minute buckets in a time window. It returns true, false, eligible, and ' +
+        'absent/ineligible counts plus prevalence. Do not use this for occurrence episodes, forward ' +
+        'outcomes, multi-condition studies, or causal claims. Missing values are excluded rather ' +
+        'than treated as false. This is a free deterministic computation.',
       inputSchema: {
         field: z
           .string()
@@ -740,7 +751,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               'universe. A string-encoded array is repaired deterministically.',
           ),
       },
-      annotations: READ_ONLY,
+      annotations: CLOSED_READ,
     },
     async ({ field, operator, value, from, to, symbol }) => {
       const key = ctx.getKey()
@@ -804,18 +815,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'Commonality across N moments',
       description:
-        'Given N (symbol, time) moments, return the DETERMINISTIC intersection: per registry field ' +
-        'a verdict of agree, partial, disagree, quiet or absent, plus the survivorship and ' +
-        'multiple-comparisons honesty framing IN the output. Never similarity search. A shared ' +
-        'feature is a description of the chosen moments, not a prediction: to test any AGREE chip, ' +
-        'follow up with base_rate over the same window.',
+        'Use this when the user supplied at least two exact historical moments and wants the ' +
+        'deterministic feature intersection across them. Do not use this as similarity search or ' +
+        'treat shared features as predictive evidence; test an agreed condition separately with ' +
+        'base_rate or run_scan. This is a free deterministic computation.',
       inputSchema: {
         moments: z
           .array(z.object({ symbol: z.string(), at: z.string() }))
           .min(2)
           .describe('At least 2 moments: { symbol: lowercase perp, at: RFC3339 }.'),
       },
-      annotations: READ_ONLY,
+      annotations: CLOSED_READ,
     },
     async ({ moments }) => {
       const key = ctx.getKey()
@@ -836,11 +846,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'List reports or fetch one by hash',
       description:
-        'Omit hash8 to list published archive and record reports with count, revision and explicit ' +
-        'integrity status. Provide an 8-hex canonical hash to fetch one report: structurally ' +
-        'generated title, author, the definition that ran (re-submittable to run_scan) and the ' +
-        'result pinned at publish time. Invalid or withdrawn reports carry correction and ' +
-        'successor metadata and must not be presented as healthy.',
+        'Use this when the user wants to list citable public EdgeDepth reports or retrieve one by ' +
+        'its 8-character canonical hash. A fetched report includes its exact definition, pinned ' +
+        'result, revision, and integrity status. Do not use this to present invalid or withdrawn reports as ' +
+        'healthy, and do not use this for unpublished user research. This is a free read.',
       inputSchema: {
         hash8: z
           .string()
@@ -848,7 +857,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           .optional()
           .describe('Optional 8 lowercase hex canonical id. Omit to list public reports.'),
       },
-      annotations: READ_ONLY,
+      annotations: CLOSED_READ,
     },
     async ({ hash8 }) => {
       const key = ctx.getKey()
@@ -870,22 +879,14 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'Run a cohort comparison study (record_occurrences)',
       description:
-        'Execute a research_query.v2 document as a predicate-complement comparison and return ' +
-        'canonical cohort_result.v2 bytes: what followed the condition (the treatment side, byte-identical to ' +
-        'the run_scan outcomes_summary for the same document) vs what followed every OTHER ' +
-        'eligible bucket where the full predicate was FALSE (the baseline), each as the same ' +
-        '30m/1h/4h/24h return + MFE/MAE summary over ALL occurrences. WHERE-ONLY: a sequence ' +
-        'document is refused with 422 COHORT_SEQUENCE_UNSUPPORTED (run it as an ordinary run_scan ' +
-        'instead). The bytes carry NO ratios, lift, averages or significance - you compare the ' +
-        'two distributions yourself. This is not covariate matching: treatment/baseline identities, ' +
-        'different observation units, dedupe difference, and denominator arithmetic ship in the ' +
-        'result with three mandatory caveats. Both sides ' +
-        'honour the completeness rule: an occurrence closer to the end of recorded data than a ' +
-        'horizon has that horizon ABSENT - quote present, not total, as the denominator. ' +
-        'CONTRACT (relay to the user): ' +
+        'Use this when an exact where-only research_query.v2 document has been confirmed and the ' +
+        'user explicitly wants the matched occurrence distribution beside every other eligible ' +
+        'predicate-false bucket. Do not use this for sequences, as a default reference baseline, for ' +
+        'covariate matching, significance, or causal claims. Read rates from each side\'s present ' +
+        'denominator. ' +
         CONFIRM_GATE_CONTRACT +
-        ' A rerun of the same document is served from cache (X-Research-Cache: hit) in its own ' +
-        'cohort namespace; reruns and 304 revalidations are free.',
+        ' A fresh cohort computation can consume research allowance units; cache hits, reruns, and ' +
+        '304 revalidations are free.',
       inputSchema: {
         document: z
           .record(z.any())
@@ -908,7 +909,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               'instrument in counts_by_symbol. Default omits zero-count entries when present.',
           ),
       },
-      annotations: READ_ONLY,
+      annotations: METERED_COMPUTE,
     },
     async ({ document, if_none_match, full_counts }) => {
       const key = ctx.getKey()
@@ -948,30 +949,14 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     {
       title: 'Split one population three ways at its own anchors',
       description:
-        'Execute a stratified_query.v1 wrapper and return canonical stratified_result.v3 bytes. ' +
-        'The wrapper embeds ONE ordinary research_query.v2 population document plus ONE ' +
-        'setup-time split predicate: {"schema_version":"stratified_query.v1","population":{...},' +
-        '"split":{"where":{"all":[[field,op,value]]},"observation":{"relative_to":"population_anchor"}}}. ' +
-        'The population is evaluated exactly once, and its immutable edge-triggered PT1H-deduped ' +
-        'anchors are then classified AT THOSE EXACT TIMESTAMPS into split_true, split_false and ' +
-        'split_absent, each carrying the same 30m/1h/4h/24h return + MFE/MAE summary. ' +
-        'THE SPLIT NEVER CREATES AN EDGE AND NEVER MOVES AN ANCHOR, which is why this is not the ' +
-        'same as running two scans and differencing them by hand: both strata are the SAME ' +
-        'occurrences, partitioned. Use it to test whether a result is confounded, for example ' +
-        'splitting a vpin finding on feature.realized_vol_pctrank to see whether the effect is ' +
-        'just high volatility, or on feature.vpin_regime, feature.funding_norm or ' +
-        'feature.spread_norm. split_absent is a real third answer (the split feature had no ' +
-        'reading at that anchor) and is never folded into false. ' +
-        'Split clauses are setup-time feature.* or window.* ids only, 1 to 6 of them; a split ' +
-        'sequence is refused with 422 STRATIFIED_SPLIT_SEQUENCE_UNSUPPORTED and a population ' +
-        'page cursor with 422 STRATIFIED_CURSOR_UNSUPPORTED. The result carries NO occurrence ' +
-        'page by design: it is summaries and denominators. Every stratum honours the ' +
-        'completeness rule, so an anchor closer to the end of recorded data than a horizon has ' +
-        'that horizon ABSENT: quote present, not total, as the denominator. ' +
-        'CONTRACT (relay to the user): ' +
+        'Use this when the user wants to test whether the outcome distribution of one confirmed ' +
+        'population changes when its existing anchors are partitioned by one setup-time condition. ' +
+        'It returns split_true, split_false, and split_absent denominators and outcomes without ' +
+        'moving or creating anchors. Do not use this for sequences in the split, cursor populations, ' +
+        'causal claims, or two independently selected scans. ' +
         CONFIRM_GATE_CONTRACT +
-        ' A rerun of the same wrapper is served from cache (X-Research-Cache: hit) in its own ' +
-        'stratified namespace; reruns and 304 revalidations are free.',
+        ' A fresh stratified computation can consume research allowance units; cache hits, reruns, ' +
+        'and 304 revalidations are free.',
       inputSchema: {
         document: z
           .record(z.any())
@@ -989,7 +974,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               'and spends nothing. Pass it back verbatim (it may be weak, W/"...").',
           ),
       },
-      annotations: READ_ONLY,
+      annotations: METERED_COMPUTE,
     },
     async ({ document, if_none_match }) => {
       const key = ctx.getKey()

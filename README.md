@@ -1,6 +1,6 @@
 # EdgeDepth Research MCP Server
 
-`@edgedepth/research-mcp` is the official, read-only Model Context Protocol server for [EdgeDepth](https://edgedepth.com/), a [market microstructure search engine](https://edgedepth.com/research) over recorded Binance USDT-M crypto and TradFi perpetuals. Use it from Claude, Cursor, Codex, or any MCP client to find every verified occurrence of a market condition, inspect forward outcomes across the complete matched set, compare against an eligible baseline, and open replay-linked evidence.
+`@edgedepth/research-mcp` is the official, research-only Model Context Protocol server for [EdgeDepth](https://edgedepth.com/), a [market microstructure search engine](https://edgedepth.com/research) over recorded Binance USDT-M crypto and TradFi perpetuals. Use it from ChatGPT, Claude, Cursor, Codex, or any MCP client to find every verified occurrence of a market condition, inspect forward outcomes across the complete matched set, read an unconditional same-scope reference, and open replay-linked evidence.
 
 Every result includes counts with denominators and a reproducibility key. Same key, same bytes.
 
@@ -13,7 +13,7 @@ Every result includes counts with denominators and a reproducibility key. Same k
 - **Measure outcomes without lookahead selection:** forward returns, MFE, and MAE are computed over all occurrences. Outcome fields cannot be used as filters.
 - **Compare matched and baseline populations:** deterministic cohort results put the matched distribution beside every other eligible predicate-false bucket.
 - **Audit and replay the evidence:** results carry a reproducibility key, and representative occurrences include authenticated web handoffs to the exact recorded market moment.
-- **Stay read-only:** the MCP tools search and retrieve research. They do not trade, modify alerts, publish reports, or write account data.
+- **Stay research-only:** no tool trades, modifies alerts, publishes reports, or writes account data. A fresh scan, cohort, or stratified computation can consume research allowance units; the annotations state that side effect explicitly.
 
 ## Choose a connection
 
@@ -79,7 +79,7 @@ Create a key on the [EdgeDepth Developer page](https://app.edgedepth.com/account
 }
 ```
 
-Local stdio requires Node.js 20 or newer. Use the `research:read` key scope for the read-only tools and add `research:interpret` only when you need `interpret_prose`.
+Local stdio requires Node.js 20 or newer. Use the `research:read` key scope for recorded-data tools and add `research:interpret` only when you need the free `interpret_prose` proposal step.
 
 ## Recommended agent workflow
 
@@ -88,7 +88,8 @@ Local stdio requires Node.js 20 or newer. Use the `research:read` key scope for 
 3. If starting from natural language, call `interpret_prose`. It returns a proposed document and never executes it.
 4. Inspect or show that proposal, then pass the exact document to `run_scan`.
 5. Read rates from `outcomes_summary`, which covers all occurrences. Page rows are examples, never the denominator.
-6. Return the full reproducibility key with the answer. Use `next_page` only with a cursor returned by the API.
+6. Read the appended unconditional same-scope reference when available. It is not matched, comparable, or a causal control.
+7. Return the full reproducibility key with the answer and one replay handoff. Use `next_page` only with a cursor returned by the API.
 
 Example instruction for an MCP client:
 
@@ -107,15 +108,16 @@ include the full reproducibility key.
 | `list_features` | Returns the closed grammar registry: feature ids, types, ranges, operators, windows, sequence rules, limits, and error codes. |
 | `list_instruments` | Returns the research universe and coverage. The default is a compact summary; use `symbols: [...]` for selected full records or `full: true` for the verbatim canonical universe. |
 | `interpret_prose` | Turns prose into a proposed query document. It does not execute the query. Optional `time_zone` accepts an IANA time zone for calendar planning. |
-| `run_scan` | Executes a `research_query.v2` document and returns canonical result bytes with counts, denominators, outcomes, and the reproducibility key. |
+| `run_scan` | Executes a `research_query.v2` document and returns canonical result bytes with counts, denominators, outcomes, the unconditional same-scope reference, and the reproducibility key. |
 | `next_page` | Continues a prior scan with its opaque cursor. Never construct cursors manually. |
 | `snapshot_at` | Reads registry feature values, window aggregates, and fired rules as of a recorded moment. |
 | `base_rate` | Counts matches and eligible buckets for one clause over a window. |
 | `commonality` | Finds the deterministic intersection across multiple moments with selection-bias caveats included. |
 | `get_report` | Retrieves a published report by its 8-character canonical hash. |
 | `run_cohort` | Compares what followed every match with what followed every other eligible predicate-false bucket. |
+| `run_stratified` | Partitions one matched population at its existing anchors into split-true, split-false, and split-absent outcome summaries. |
 
-All tools are read-only.
+No tool can trade, change market state, publish, or modify account data. `run_scan`, `run_cohort`, and `run_stratified` are annotated as metered computations because a fresh call can irreversibly consume an allowance unit. The other recorded-data tools are closed-world reads. `interpret_prose` is a free read that uses the configured external language interpreter.
 
 ## Research contract
 
@@ -124,6 +126,7 @@ All tools are read-only.
 - Contract codes are machine-actionable. For errors such as `UNSUPPORTED_FEATURE` or `OUTCOME_IN_PREDICATE`, call `list_features`, repair the document, and retry.
 - Deterministic tools are exact-document, UTC-only tools. `interpret_prose` may use a time zone to plan dates, but `run_scan`, `run_cohort`, and `base_rate` never reinterpret calendar language.
 - Reruns and ETag `304 Not Modified` revalidations are free. `list_instruments` ETags are scoped to the requested summary, symbol projection, or full representation.
+- Interpretation is free and never debits the scan allowance. An unavailable scan allowance returns neutral `402 RESEARCH_ALLOWANCE_EXHAUSTED` metadata without a checkout link.
 
 ## REST API and documentation
 

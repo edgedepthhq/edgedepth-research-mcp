@@ -42,7 +42,7 @@ describe('release identity is consistent', () => {
 })
 
 describe('tool schema', () => {
-  it('exposes exactly the eleven read-only tools', async () => {
+  it('exposes exactly the eleven research tools', async () => {
     const client = await connectClient()
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -95,11 +95,34 @@ describe('tool schema', () => {
     })
   })
 
-  it('all tools declare read-only annotations (no write surface in v1)', async () => {
+  it('classifies every tool side effect and world boundary explicitly', async () => {
     const client = await connectClient()
     const { tools } = await client.listTools()
-    for (const t of tools) {
-      expect(t.annotations?.readOnlyHint).toBe(true)
+    const annotations = Object.fromEntries(tools.map((tool) => [tool.name, tool.annotations]))
+    const closedRead = { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
+    const externalRead = { readOnlyHint: true, destructiveHint: false, openWorldHint: true }
+    const meteredCompute = { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
+    expect(annotations).toEqual({
+      list_features: closedRead,
+      list_instruments: closedRead,
+      interpret_prose: externalRead,
+      run_scan: meteredCompute,
+      next_page: closedRead,
+      snapshot_at: closedRead,
+      base_rate: closedRead,
+      commonality: closedRead,
+      get_report: closedRead,
+      run_cohort: meteredCompute,
+      run_stratified: meteredCompute,
+    })
+  })
+
+  it('writes invocation metadata rather than generic documentation', async () => {
+    const client = await connectClient()
+    const { tools } = await client.listTools()
+    for (const tool of tools) {
+      expect(tool.description, tool.name).toMatch(/^Use this when /)
+      expect(tool.description, tool.name).toContain('Do not use')
     }
   })
 })

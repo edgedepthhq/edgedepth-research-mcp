@@ -77,20 +77,24 @@ describe('error + repro mapping', () => {
 
   it('surfaces repro + credit headers on a 200 scan (miss, charged)', async () => {
     const body = JSON.stringify({ counts: { total_matching: 3 }, reproducibility_key: { canonical_query_hash: 'deadbeef' } })
-    fetchMock.mockResolvedValueOnce(
-      new Response(body, {
-        status: 200,
-        headers: {
-          'content-type': 'application/json',
-          etag: 'W/"scan1"',
-          'x-canonical-query-hash': 'deadbeef',
-          'x-dataset-revision': 'rev-7',
-          'x-research-cache': 'miss',
-          'x-research-credits-charged': '1',
-          'x-research-credits-remaining': '4',
-        },
-      }),
-    )
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(body, {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            etag: 'W/"scan1"',
+            'x-canonical-query-hash': 'deadbeef',
+            'x-dataset-revision': 'rev-7',
+            'x-research-cache': 'miss',
+            'x-research-credits-charged': '1',
+            'x-research-credits-remaining': '4',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ baseline_encoding: 'baseline_result.v1' }), { status: 200 }),
+      )
     const client = await connectClient()
     const res = await client.callTool({ name: 'run_scan', arguments: { document: { a: 1 } } })
     expect(res.isError).toBeFalsy()

@@ -11,7 +11,7 @@ curated listing sooner. House rule: no em-dashes.
 | --- | --- |
 | Name | EdgeDepth Research |
 | Registry name | `com.edgedepth/research` |
-| npm package | `@edgedepth/research-mcp` (0.1.3, MIT) |
+| npm package | `@edgedepth/research-mcp` (0.3.0, MIT) |
 | One-line install | `npx -y @edgedepth/research-mcp` |
 | Remote (Streamable HTTP) | `https://mcp.edgedepth.com/mcp` |
 | Repository | `https://github.com/edgedepthhq/edgedepth-research-mcp` |
@@ -20,7 +20,7 @@ curated listing sooner. House rule: no em-dashes.
 | Homepage | `https://edgedepth.com` |
 | Auth | Browser OAuth for hosted MCP; `EDGEDEPTH_API_KEY` only for stdio fallback |
 | Transports | Remote streamable-http + local npx stdio |
-| Tools (9, read-only) | list_features, interpret_prose, run_scan, next_page, snapshot_at, base_rate, commonality, get_report, run_cohort |
+| Tools (11, research-only) | list_features, list_instruments, interpret_prose, run_scan, next_page, snapshot_at, base_rate, commonality, get_report, run_cohort, run_stratified |
 | Tags | crypto, tradfi, market-data, trading, perpetual-futures, research, finance, analytics, order-flow, reproducible |
 
 Short description (one sentence, from server.json):
@@ -29,7 +29,7 @@ Short description (one sentence, from server.json):
 
 Long description (the honesty hook, reuse verbatim):
 
-> An MCP server for the EdgeDepth Research API, a search engine for recorded crypto and TradFi microstructure. Counts always carry their denominators, outcomes are computed forward and can never be filtered, and every result hands back a reproducibility key the agent can cite (same key, same bytes). Compare matching occurrences with every other eligible bucket through deterministic cohorts. Read-only v1 over a closed, versioned grammar; contract error codes are machine-actionable.
+> An MCP server for the EdgeDepth Research API, an evidence engine over recorded crypto and TradFi-perpetual microstructure. Counts carry their denominators, outcomes are computed forward over all matches, every scan includes an unconditional same-scope reference when available, and replay handoffs open exact occurrences. No tool trades or writes account data. Fresh scans can consume allowance units; cached reruns are free.
 
 ## Preconditions
 
@@ -50,8 +50,7 @@ Submit the repository (it reads the repo + npm). Fields:
 - npm: `@edgedepth/research-mcp`
 - Description: the long description above.
 - Tags: crypto, tradfi, market-data, trading, research, finance, analytics.
-- Note: Glama scores servers on README quality and a passing build; the README
-  already carries the config blocks and the tool table, so no extra work.
+- Ownership: deploy `/.well-known/glama.json`, then confirm the remote health check passes.
 
 ## 3. PulseMCP (pulsemcp.com/submit)
 
@@ -68,14 +67,13 @@ Form fields:
 
 ## 4. Smithery (smithery.ai)
 
-Smithery connects a Git repo and can host remotes. Caveat: it is GitHub-first and
-the canonical repo is GitLab. Two options:
+Smithery connects a Git repo and can host remotes. The canonical public repository is GitHub. Two options:
 
 - Preferred: point Smithery at the remote (`https://mcp.edgedepth.com/mcp`) and
   the npm package; fill name + description + tags from the table.
-- If Smithery requires a GitHub repo, push a public GitHub mirror of
-  `edgedepth-research-mcp` first, then connect that. Keep `server.json` and
-  `package.json` `mcpName` identical to the canonical repo.
+- If Smithery requires repository authorization, connect
+  `https://github.com/edgedepthhq/edgedepth-research-mcp`. Keep `server.json`
+  and `package.json` `mcpName` identical.
 
 ## 5. Awesome MCP Servers (github.com/punkpeye/awesome-mcp-servers)
 

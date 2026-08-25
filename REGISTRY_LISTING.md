@@ -17,11 +17,11 @@ The `name` in `server.json` and the `mcpName` in `package.json` MUST be identica
 
 The registry stores metadata only; the artifact lives on npm.
 
-- [ ] Confirm `package.json`: `name` `@edgedepth/research-mcp`, `version` `0.1.3`, `mcpName` `com.edgedepth/research`, `bin`, and `files` (`dist`, `README.md`, `server.json`).
+- [ ] Confirm `package.json`: `name` `@edgedepth/research-mcp`, `version` `0.3.0`, `mcpName` `com.edgedepth/research`, `bin`, and `files` (`dist`, `README.md`, `server.json`).
 - [ ] `NODE_ENV=development npm ci --include=dev && npm run build && npm test` (gate: tsc + vitest green).
 - [ ] `npm login` (npm account with rights to the `@edgedepth` scope; create the org/scope if new).
 - [ ] `npm publish --access public` (scoped packages default to restricted; `--access public` is required).
-- [ ] Verify: `https://www.npmjs.com/package/@edgedepth/research-mcp` shows 0.1.3, and `npx -y @edgedepth/research-mcp` starts (set `EDGEDEPTH_API_KEY` first).
+- [ ] Verify: `https://www.npmjs.com/package/@edgedepth/research-mcp` shows 0.3.0, and `npx -y @edgedepth/research-mcp` starts (set `EDGEDEPTH_API_KEY` first).
 
 Version bumps: publishing a new version means bump `version` in BOTH `package.json` and `server.json` (and the top-level and per-package `version`), then republish npm, then re-run the registry publish (step 3).
 
@@ -59,7 +59,7 @@ Most of these ingest the official registry automatically once step 3 lands; subm
 
 ## 5. Post-listing smoke test (from a clean machine)
 
-- [ ] Cursor: paste the `~/.cursor/mcp.json` remote block from the README; confirm `/mcp` shows the 9 tools and `list_features` returns the registry.
+- [ ] Cursor: paste the `~/.cursor/mcp.json` remote block from the README; confirm `/mcp` shows the 11 tools and `list_features` returns the registry.
 - [ ] Codex: `codex mcp add` or the `config.toml` block; `/mcp` lists tools.
 - [ ] Claude Desktop: use the npm stdio block from the onboarding page; run `list_features`, then a small `run_scan`, and confirm the reproducibility key comes back.
 - [ ] Local: `npx -y @edgedepth/research-mcp` with `EDGEDEPTH_API_KEY` set, from any stdio client.

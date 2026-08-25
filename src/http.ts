@@ -78,6 +78,29 @@ export function createHttpApp(): express.Express {
     res.status(200).json({ ok: true, server: SERVER_NAME, version: SERVER_VERSION })
   })
 
+  app.get('/.well-known/glama.json', (_req, res) => {
+    res
+      .set('Cache-Control', 'public, max-age=300')
+      .status(200)
+      .json({
+        $schema: 'https://glama.ai/mcp/schemas/server.json',
+        maintainers: ['jtucker96'],
+      })
+  })
+
+  app.get('/.well-known/openai-apps-challenge', (_req, res) => {
+    const token = process.env.OPENAI_APPS_CHALLENGE_TOKEN?.trim() || ''
+    if (!token) {
+      res.status(404).end()
+      return
+    }
+    res
+      .set('Cache-Control', 'no-store')
+      .type('text/plain')
+      .status(200)
+      .send(token)
+  })
+
   const metadata = (_req: Request, res: ExpressResponse) => {
     res
       .set('Access-Control-Allow-Origin', '*')

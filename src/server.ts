@@ -11,13 +11,17 @@ import { registerResearchTools, type ToolContext } from './tools.js'
 
 const INSTRUCTIONS =
   'EdgeDepth Research: deterministic search over recorded crypto and TradFi microstructure. ' +
-  'Call list_features first to ground on the closed grammar and list_instruments for the ' +
-  'manifest-derived universe and provenance. Scans return counts WITH ' +
-  'denominators and an outcomes_summary computed forward over ALL occurrences: read rates from ' +
-  'outcomes_summary, never from page rows. Echo the reproducibility key with any answer (same ' +
-  'key, same bytes). Outcome fields can never be filtered. Errors carry machine-actionable ' +
-  'contract codes (e.g. UNSUPPORTED_FEATURE, OUTCOME_IN_PREDICATE): read the code, call ' +
-  'list_features, and repair the document. Reruns and 304 revalidations are free, so rerun freely.'
+  'For a prose question, call interpret_prose, show the exact proposed definition, then call ' +
+  'run_scan only after confirmation. If an exact valid document already exists, call run_scan ' +
+  'directly; do not add grounding calls reflexively. Use list_features to construct or repair a ' +
+  'document and list_instruments to verify symbol coverage or provenance. Answer as: one exact ' +
+  'definition, one denominated result, one unconditional same-scope reference rate when available, ' +
+  'one contradictory example when the result actually identifies one, and one replay handoff. ' +
+  'Never invent a baseline or counterexample, call the unconditional baseline comparable, ' +
+  'recommend a buy/sell decision, or execute a trade. Read rates from outcomes_summary over all ' +
+  'occurrences, never from page rows, and echo the reproducibility key. Outcome fields can never ' +
+  'be filtered. Repair machine-actionable contract errors using list_features. Cache hits, reruns, ' +
+  'continuations, and 304 revalidations are free.'
 
 export function createResearchMcpServer(ctx: ToolContext): McpServer {
   const server = new McpServer(

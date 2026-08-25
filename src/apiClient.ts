@@ -30,6 +30,7 @@ export interface ApiRequest {
 export interface ApiResponseHeaders {
   etag?: string
   canonicalQueryHash?: string
+  baselineScopeHash?: string
   datasetRevision?: string
   featureVer?: string
   rulebookVersion?: string
@@ -99,6 +100,7 @@ export async function apiRequest(base: string, req: ApiRequest): Promise<ApiResp
     headers: {
       etag: h.get('etag') ?? undefined,
       canonicalQueryHash: h.get('x-canonical-query-hash') ?? undefined,
+      baselineScopeHash: h.get('x-baseline-scope-hash') ?? undefined,
       datasetRevision: h.get('x-dataset-revision') ?? undefined,
       featureVer: h.get('x-research-feature-ver') ?? undefined,
       rulebookVersion: h.get('x-rulebook-version') ?? undefined,

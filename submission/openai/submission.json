@@ -1,0 +1,82 @@
+{
+  "schema_version": "edgedepth.openai_submission.v1",
+  "listing": {
+    "name": "EdgeDepth Research",
+    "short_description": "Test historical crypto market-microstructure claims against recorded evidence.",
+    "long_description": "Ask a historical crypto market-microstructure question, inspect the exact definition, then search the recorded market for every eligible occurrence. EdgeDepth returns counts with denominators, forward outcomes over the complete matched set, an unconditional same-scope reference when available, a reproducibility key, and replay handoffs to exact recorded moments. It does not provide live quotes, personalized investment advice, trade execution, transfers, or portfolio actions.",
+    "website_url": "https://edgedepth.com/research",
+    "support_url": "https://edgedepth.com/contact",
+    "privacy_policy_url": "https://edgedepth.com/legal/privacy",
+    "terms_url": "https://edgedepth.com/legal/terms",
+    "logo_source": "https://edgedepth.com/apple-touch-icon.png",
+    "category_preference": "Research"
+  },
+  "mcp": {
+    "url_type": "Universal",
+    "production_url": "https://mcp.edgedepth.com/mcp",
+    "authentication": "OAuth",
+    "oauth_scopes": ["research:read", "research:interpret"],
+    "challenge_url": "https://mcp.edgedepth.com/.well-known/openai-apps-challenge",
+    "has_custom_ui": false,
+    "content_security_policy": "No custom UI. No browser resource or connection domains are requested."
+  },
+  "starter_prompts": [
+    "Do liquidation cascades usually bounce? Define the condition precisely and ask me to confirm before running it.",
+    "Does rising open interest make crypto breakouts more likely to continue? Test it against the recorded market.",
+    "Find historical BTC moments with elevated VPIN and aggressive buying, then give me one replay-linked occurrence.",
+    "How common was extreme positive funding across eligible markets in the last 90 complete UTC days?"
+  ],
+  "positive_test_cases": [
+    {
+      "id": "P1_PROSE_TO_PROPOSAL",
+      "prompt": "Do liquidation cascades usually bounce? Define it precisely before you run anything.",
+      "expected_tools": ["interpret_prose"],
+      "expected_behavior": "Return a proposed exact document and ask for confirmation. Do not run a scan in the same step."
+    },
+    {
+      "id": "P2_INDIRECT_EVIDENCE_INTENT",
+      "prompt": "Can you check whether rising open interest actually confirmed crypto breakouts historically?",
+      "expected_tools": ["interpret_prose"],
+      "expected_behavior": "Recognize historical-evidence intent, propose the exact definition, and preserve unsupported or clarification notices."
+    },
+    {
+      "id": "P3_EXACT_DOCUMENT_SCAN",
+      "prompt": "Run this confirmed EdgeDepth research_query.v2 document and report the denominated 1h outcome, reference rate, reproducibility key, and a replay link.",
+      "expected_tools": ["run_scan"],
+      "expected_behavior": "Use the supplied exact document, report rates from complete-result summaries, label the unconditional reference honestly, and include a replay handoff."
+    },
+    {
+      "id": "P4_COMMON_MOMENTS",
+      "prompt": "What setup features were shared by these three exact EdgeDepth moments?",
+      "expected_tools": ["commonality"],
+      "expected_behavior": "Describe deterministic commonality with selection-bias caveats and do not call it predictive evidence."
+    },
+    {
+      "id": "P5_PUBLIC_REPORT",
+      "prompt": "Retrieve EdgeDepth report a1b2c3d4 and tell me its integrity status and exact definition.",
+      "expected_tools": ["get_report"],
+      "expected_behavior": "Fetch the report by hash and do not present invalid or withdrawn material as healthy."
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "id": "N1_LIVE_QUOTE",
+      "prompt": "What is the live BTC price right now?",
+      "expected_tools": [],
+      "expected_behavior": "Do not invoke EdgeDepth Research; it is not a live quote tool."
+    },
+    {
+      "id": "N2_PERSONALIZED_ADVICE",
+      "prompt": "Given my portfolio, should I buy BTC or sell ETH today?",
+      "expected_tools": [],
+      "expected_behavior": "Do not invoke EdgeDepth Research for personalized investment instructions."
+    },
+    {
+      "id": "N3_EXECUTION",
+      "prompt": "Open a 10x BTC long for me and set a stop loss.",
+      "expected_tools": [],
+      "expected_behavior": "Do not invoke any EdgeDepth Research tool; the plugin cannot execute trades or transfers."
+    }
+  ],
+  "release_notes": "Initial MCP-only submission. Adds explicit per-tool annotations, invocation-focused metadata, free interpretation, a neutral allowance error, automatic unconditional same-scope references on scans, replay handoffs, and production verification endpoints."
+}
