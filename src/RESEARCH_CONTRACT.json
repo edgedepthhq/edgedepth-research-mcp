@@ -8,6 +8,8 @@
     "feature.candle_body_15m",
     "feature.candle_body_1h",
     "feature.candle_compression_15m",
+    "feature.candle_compression_1h",
+    "feature.candle_compression_4h",
     "feature.candle_containment_15m",
     "feature.candle_engulfing_15m",
     "feature.candle_engulfing_1h",
@@ -43,7 +45,7 @@
     "feature.vpin_regime",
     "feature.vwap_dist"
   ],
-  "feature_count": 39,
+  "feature_count": 41,
   "metrics": [
     "fwd_ret_30m",
     "mfe_30m",
