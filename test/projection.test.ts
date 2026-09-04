@@ -142,8 +142,10 @@ describe('leanScanBody: what it removes', () => {
     expect(note).toContain('NO LONGER SUMS')
   })
 
-  it('drops empty ladder rungs only', () => {
-    const lean = leanScanBody(scanBody(3))!
+  it('drops empty ladder rungs only, in full_outcomes mode', () => {
+    // The 0.5.0 default replaces the ladders with the paired answer block, so
+    // the rung trim is what full_outcomes: true still gets.
+    const lean = leanScanBody(scanBody(3), { ...DEFAULT_LEAN, answer: false })!
     const buckets = JSON.parse(lean.bodyText).outcomes_summary.metrics.fwd_ret_1h.buckets
     expect(buckets.map((b: { count: number }) => b.count)).toEqual([4, 70])
     expect(lean.notes.join(' ')).toContain('2 empty threshold rung(s)')

@@ -33,6 +33,8 @@
  *     be told 304 "identical result" for a rows: 25 or a full_counts request.
  */
 
+import { answerNote, pairOutcomes } from './answer.js'
+
 /** Base projection tag, kept from the zero-count compaction so the meaning of
  *  the leading token does not change: this body is a projection, not the
  *  engine's canonical bytes. */
@@ -53,20 +55,30 @@ export interface LeanOptions {
   fullRows: boolean
   /** counts_by_symbol entries to keep, by total_matching descending */
   symbols: number
+  /** replace the outcome ladders with the paired answer block (see answer.ts).
+   *  False restores the 0.4.0 shape: full ladders on both sides. */
+  answer: boolean
 }
 
 export const DEFAULT_LEAN: LeanOptions = {
   rows: DEFAULT_ROWS,
   fullRows: false,
   symbols: DEFAULT_SYMBOLS,
+  answer: true,
 }
 
 /**
  * The ETag tag for one projection. Every knob that changes the bytes is in
  * here, so revalidation can only ever match the same representation.
+ *
+ * The answer marker is ADDED for the 0.5.0 default rather than the full-ladder
+ * shape being renamed, so an ETag minted by 0.4.0 (`nz.r3`) still revalidates
+ * correctly against the same full-ladder bytes it described.
  */
 export function projectionTag(opts: LeanOptions): string {
-  const parts = [COMPACT_TAG, `r${Math.max(0, Math.trunc(opts.rows))}`]
+  const parts = [COMPACT_TAG]
+  if (opts.answer) parts.push('a')
+  parts.push(`r${Math.max(0, Math.trunc(opts.rows))}`)
   if (opts.fullRows) parts.push('full')
   if (opts.symbols !== DEFAULT_SYMBOLS) parts.push(`s${Math.max(0, Math.trunc(opts.symbols))}`)
   return parts.join('.')
@@ -116,7 +128,11 @@ export interface LeanResult {
  * The scan-family projection. Returns null (verbatim fallback) on non-JSON,
  * a non-object body, or when nothing at all would be removed.
  */
-export function leanScanBody(bodyText: string, opts: LeanOptions = DEFAULT_LEAN): LeanResult | null {
+export function leanScanBody(
+  bodyText: string,
+  opts: LeanOptions = DEFAULT_LEAN,
+  baselineSummary?: unknown,
+): LeanResult | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(bodyText)
@@ -220,15 +236,40 @@ export function leanScanBody(bodyText: string, opts: LeanOptions = DEFAULT_LEAN)
     }
   }
 
-  // 4. Empty ladder rungs, in the result's own summary and in any baseline
-  //    summary carried inside the same body.
-  const rungs = trimZeroRungs(body.outcomes_summary) + trimZeroRungs(body.baseline)
-  if (rungs > 0) {
-    notes.push(
-      `outcomes_summary: ${rungs} empty threshold rung(s) omitted. The rung grid is closed and ` +
-        'published by list_features, so an absent rung is a stated zero. Every non-zero count, ' +
-        'absent tally and denominator is untouched.',
-    )
+  // 4. The outcome ladders. In answer mode they are REPLACED by the paired
+  //    block (the only step in this file that derives rather than removes, and
+  //    it keeps every count beside its derived rate: see answer.ts). Otherwise
+  //    the 0.4.0 behaviour stands and only empty rungs go.
+  const paired = opts.answer
+    ? pairOutcomes(body.outcomes_summary, baselineSummary ?? body.baseline)
+    : null
+  if (paired) {
+    const summary = body.outcomes_summary
+    body.outcomes_summary = {
+      ...(isRecord(summary) && typeof summary.note === 'string' ? { note: summary.note } : {}),
+      ...(isRecord(summary) && Array.isArray(summary.occurrences_per_day)
+        ? { occurrences_per_day: summary.occurrences_per_day }
+        : {}),
+      metrics: paired.metrics,
+    }
+    // A baseline carried INSIDE the body has now been folded into the rungs
+    // above, so its duplicate ladder goes; its scope and counts stay.
+    if (isRecord(body.baseline) && isRecord(body.baseline.metrics)) {
+      const { metrics: _metrics, ...rest } = body.baseline
+      body.baseline = rest
+    }
+    notes.push(answerNote(paired))
+  } else {
+    // Not answerable (no threshold ladder in this body, or full_outcomes was
+    // asked for): degrade to the 0.4.0 removal rather than doing nothing.
+    const rungs = trimZeroRungs(body.outcomes_summary) + trimZeroRungs(body.baseline)
+    if (rungs > 0) {
+      notes.push(
+        `outcomes_summary: ${rungs} empty threshold rung(s) omitted. The rung grid is closed and ` +
+          'published by list_features, so an absent rung is a stated zero. Every non-zero count, ' +
+          'absent tally and denominator is untouched.',
+      )
+    }
   }
 
   if (notes.length === 0) return null
@@ -239,7 +280,7 @@ export function leanScanBody(bodyText: string, opts: LeanOptions = DEFAULT_LEAN)
  * The same rung trim for a standalone summary body (the unconditional
  * same-scope reference). Returns null when nothing is removed.
  */
-export function leanSummaryBody(bodyText: string): LeanResult | null {
+export function leanSummaryBody(bodyText: string, foldedIntoAnswer = false): LeanResult | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(bodyText)
@@ -248,6 +289,34 @@ export function leanSummaryBody(bodyText: string): LeanResult | null {
   }
   if (!isRecord(parsed)) return null
   const body = parsed as Record<string, unknown>
+
+  // In answer mode every unconditional rate the caller can act on is already
+  // stated beside its matched rate, so this ladder is a second copy. Its
+  // scope, counts, notes and reproducibility key stay, because those are the
+  // provenance of the numbers folded above and are not restated there.
+  if (foldedIntoAnswer) {
+    let folded = 0
+    for (const field of ['baseline', 'outcomes_summary']) {
+      const container = body[field]
+      if (isRecord(container) && isRecord(container.metrics)) {
+        folded += Object.keys(container.metrics).length
+        const { metrics: _metrics, occurrences_per_day: _perDay, ...rest } = container
+        body[field] = rest
+      }
+    }
+    if (folded === 0) return null
+    return {
+      bodyText: JSON.stringify(body),
+      notes: [
+        `reference: the ladder for ${folded} metric(s) is omitted because every unconditional ` +
+          'rate is already stated as baseline_rate beside its matched rate in the answer block ' +
+          'above, over these same symbols and this same window. Scope, counts, notes and the ' +
+          "reproducibility key are untouched. Pass full_outcomes: true for the reference's own " +
+          'full ladder.',
+      ],
+    }
+  }
+
   const rungs = trimZeroRungs(body.baseline) + trimZeroRungs(body.outcomes_summary)
   // The unconditional population's per-day histogram answers no question the
   // reference is here for (concentration belongs to the MATCHED set, whose own

@@ -29,8 +29,9 @@ const REPORT_CONTRACT =
   'Then report: the exact definition, the count with its eligible denominator, the outcome ' +
   'rates read from outcomes_summary over all occurrences (never from page rows), the ' +
   'unconditional same-scope reference labelled as not comparable, the full reproducibility ' +
-  'key, and one replay handoff with how far back it sits. If the result contradicts the ' +
-  'premise, say so plainly.'
+  'key, and one replay handoff with how far back it sits. Quote each rate with the count it ' +
+  'came from, and quote lift as the ratio of the two stated rates it is, not as an effect ' +
+  'size. If the result contradicts the premise, say so plainly.'
 
 function userPrompt(text: string) {
   return { messages: [{ role: 'user' as const, content: { type: 'text' as const, text } }] }

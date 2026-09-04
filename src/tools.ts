@@ -236,7 +236,7 @@ function replayHandoffs(res: ApiResponse): TextBlock | null {
 /** The baseline is useful context, not a precondition for a valid scan. Keep
  *  its bytes in a separately labelled block and make every failure explicitly
  *  non-fatal. Never describe this unconditional population as comparable. */
-function baselineReference(res: ApiResponse, lean = true): TextBlock {
+function baselineReference(res: ApiResponse, lean = true, foldedIntoAnswer = false): TextBlock {
   if (!res.ok || res.notModified || !res.bodyText) {
     let code = `HTTP_${res.status}`
     try {
@@ -251,7 +251,7 @@ function baselineReference(res: ApiResponse, lean = true): TextBlock {
         `${code}). The historical scan result remains valid; do not invent a reference rate.`,
     )
   }
-  const projected = lean ? leanSummaryBody(res.bodyText) : null
+  const projected = lean ? leanSummaryBody(res.bodyText, foldedIntoAnswer) : null
   return text(
     'unconditional_same_scope_reference:\n' +
       'This reference is unconditional over the same symbols and window. It is not matched, ' +
@@ -277,23 +277,53 @@ export { COMPACT_TAG, compactScanBody, leanScanBody, projectionTag } from './pro
 /** passthrough, minus what the lean projection removes. Falls back to verbatim
  *  on parse failure, non-JSON, error bodies, or when nothing would be removed,
  *  so the projection can only ever REMOVE. */
-function leanPassthrough(res: ApiResponse, opts: LeanOptions, on304?: string): ToolResult {
+function leanPassthrough(
+  res: ApiResponse,
+  opts: LeanOptions,
+  on304?: string,
+  baselineSummary?: unknown,
+): ToolResult {
   const scopedHeaders = { ...res.headers, etag: scopeEtag(res.headers.etag, projectionTag(opts)) }
   if (res.notModified) return passthrough({ ...res, headers: scopedHeaders }, on304)
   if (!res.ok || !res.bodyText) return passthrough(res, on304)
-  const lean = leanScanBody(res.bodyText, opts)
+  const lean = leanScanBody(res.bodyText, opts, baselineSummary)
   if (!lean) return passthrough(res, on304)
   const result = passthrough({ ...res, bodyText: lean.bodyText, headers: scopedHeaders }, on304)
-  result.content.push(text(`projection (only removals; nothing recomputed):\n- ${lean.notes.join('\n- ')}`))
+  // The answer block derives, so it carries its own heading and states its
+  // operands; every other note is still a pure removal.
+  const removals = lean.notes.filter((note) => !note.startsWith('answer ('))
+  const derived = lean.notes.filter((note) => note.startsWith('answer ('))
+  if (removals.length > 0) {
+    result.content.push(text(`projection (only removals; nothing recomputed):\n- ${removals.join('\n- ')}`))
+  }
+  for (const note of derived) result.content.push(text(note))
   return result
 }
 
-/** The row/symbol knobs, read from tool input with the audited defaults. */
-function leanOptions(input: { rows?: number; full_rows?: boolean }): LeanOptions {
+/** The row/symbol/answer knobs, read from tool input with the audited defaults. */
+function leanOptions(input: {
+  rows?: number
+  full_rows?: boolean
+  full_outcomes?: boolean
+}): LeanOptions {
   return {
     rows: typeof input.rows === 'number' ? Math.max(0, Math.min(50, Math.trunc(input.rows))) : DEFAULT_ROWS,
     fullRows: input.full_rows === true,
     symbols: DEFAULT_SYMBOLS,
+    answer: input.full_outcomes !== true,
+  }
+}
+
+/** The unconditional summary to pair against, read from a /baseline response.
+ *  Returns undefined on anything unusable, and the answer block then states
+ *  that no reference was available rather than inventing one. */
+function baselineSummaryOf(res: ApiResponse | null): unknown {
+  if (!res || !res.ok || res.notModified || !res.bodyText) return undefined
+  try {
+    const parsed = JSON.parse(res.bodyText) as Record<string, unknown>
+    return parsed.baseline ?? parsed.outcomes_summary
+  } catch {
+    return undefined
   }
 }
 
@@ -346,6 +376,17 @@ const ROWS_INPUT = {
     .describe(
       'True keeps every recorded setup value on each returned row. Default keeps only the ' +
         'fields that row\'s own evidence names, which are the fields the predicate matched on.',
+    ),
+  full_outcomes: z
+    .boolean()
+    .optional()
+    .describe(
+      'True returns the complete outcome ladders: every threshold rung and per-rung histogram ' +
+        'for all twelve metrics, on the matched set and on the unconditional reference ' +
+        'separately, with no rate or lift computed for you. That is tens of thousands of ' +
+        'characters and can exceed a client tool-result limit. Default returns the paired answer ' +
+        'block instead: the same verbatim counts and denominators for the canonical rungs, with ' +
+        'the matched rate, the unconditional rate and their ratio stated side by side.',
     ),
 }
 
@@ -695,10 +736,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       },
       annotations: METERED_COMPUTE,
     },
-    async ({ document, if_none_match, full_counts, rows, full_rows }) => {
+    async ({ document, if_none_match, full_counts, rows, full_rows, full_outcomes }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
-      const lean = leanOptions({ rows, full_rows })
+      const lean = leanOptions({ rows, full_rows, full_outcomes })
       const res = await apiRequest(ctx.apiBase, {
         method: 'POST',
         path: '/query',
@@ -732,8 +773,12 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
             res,
             lean,
             'Re-run the document without If-None-Match to fetch the cached bytes (still free).',
+            baselineSummaryOf(baseline),
           )
-      if (baseline) result.content.push(baselineReference(baseline, !full_counts))
+      // The reference sheds its ladder only when the answer block actually
+      // paired one in, so a baseline that failed still arrives whole.
+      const folded = !full_counts && lean.answer && baselineSummaryOf(baseline) !== undefined
+      if (baseline) result.content.push(baselineReference(baseline, !full_counts, folded))
       const handoffs = replayHandoffs(res)
       if (handoffs) result.content.push(handoffs)
       return withRepair(result, res, ctx, key)
@@ -771,10 +816,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       },
       annotations: CLOSED_READ,
     },
-    async ({ document, cursor, if_none_match, full_counts, rows, full_rows }) => {
+    async ({ document, cursor, if_none_match, full_counts, rows, full_rows, full_outcomes }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
-      const lean = leanOptions({ rows, full_rows })
+      const lean = leanOptions({ rows, full_rows, full_outcomes })
       const doc: Record<string, unknown> = { ...(document as Record<string, unknown>) }
       const prevPage = (doc.page ?? {}) as Record<string, unknown>
       const limit = typeof prevPage.limit === 'number' ? prevPage.limit : 50
@@ -1030,10 +1075,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       },
       annotations: METERED_COMPUTE,
     },
-    async ({ document, if_none_match, full_counts, rows, full_rows }) => {
+    async ({ document, if_none_match, full_counts, rows, full_rows, full_outcomes }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
-      const lean = leanOptions({ rows, full_rows })
+      const lean = leanOptions({ rows, full_rows, full_outcomes })
       const res = await apiRequest(ctx.apiBase, {
         method: 'POST',
         path: '/cohort',

@@ -98,7 +98,15 @@ trailing note with the exact way to get the bytes back:
 - the per-occurrence `outcomes` map keeps the entries for the rows that remain;
 - `counts_by_symbol` keeps the top entries by match count, and says how many
   instruments and matches were omitted;
-- empty threshold rungs are dropped from `outcomes_summary`.
+- the outcome ladders are replaced by a paired answer block: for each metric,
+  `present`, `absent` and the selected rungs' integer counts pass through
+  verbatim, with `rate`, the unconditional `baseline_rate` over the same
+  symbols and window, and their ratio as `lift` stated beside them. The
+  selection is fixed in advance (`gte 0.01`, `gte 0.02`, `lte -0.01`,
+  `lte -0.02`), drops rungs that separate nothing, and adds the single rung
+  carrying the largest lift among those holding at least 30 occurrences,
+  marked `kept_for`. `full_outcomes: true` returns every rung and the per-rung
+  histogram, on the matched set and the reference separately.
 
 Counts, denominators, absent tallies, `predicate_coverage`, representatives,
 the page cursor and the reproducibility key are never touched, and the request
@@ -130,7 +138,7 @@ so a client can attach it once instead of calling `list_features` every session.
 2. Call `list_instruments` to check the manifest-derived universe, coverage, and provenance.
 3. If starting from natural language, call `interpret_prose`. It returns a proposed document and never executes it.
 4. Inspect or show that proposal, then pass the exact document to `run_scan`.
-5. Read rates from `outcomes_summary`, which covers all occurrences. Page rows are examples, never the denominator.
+5. Read rates from `outcomes_summary`, which covers all occurrences. Page rows are examples, never the denominator. Each rung already carries its matched count and rate, the unconditional rate, and their ratio as `lift`: quote those, and quote the count beside the rate. No `lift` means no reference was available or the unconditional rate was zero; neither licenses estimating one.
 6. Read the appended unconditional same-scope reference when available. It is not matched, comparable, or a causal control.
 7. Return the full reproducibility key with the answer and one replay handoff. Each handoff states how far back it sits; replay reach is a per-account entitlement, so an old moment can be refused at the web surface even though the occurrence is real. Use `next_page` only with a cursor returned by the API.
 

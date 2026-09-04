@@ -21,6 +21,12 @@ const INSTRUCTIONS =
   'Scan-family results come back as a stated projection: rows are thinned examples and every ' +
   'removal is listed, so read counts and rates from counts and outcomes_summary, raise rows for ' +
   'more examples, and pass full_counts only when verbatim canonical bytes are required. ' +
+  'outcomes_summary.metrics[].rungs already states, per selected threshold, the matched count and ' +
+  'rate, the unconditional count and rate over the same symbols and window, and their ratio as ' +
+  'lift: quote those numbers rather than recomputing them, and quote the count beside any rate. A ' +
+  'rung marked kept_for was included because it carries the largest lift in that grid; absent ' +
+  'lift means no reference was available or the unconditional rate was zero, and neither is a ' +
+  'reason to estimate one. Pass full_outcomes for every rung and the per-rung histogram. ' +
   'Never invent a baseline or counterexample, call the unconditional baseline comparable, ' +
   'recommend a buy/sell decision, or execute a trade. Read rates from outcomes_summary over all ' +
   'occurrences, never from page rows, and echo the reproducibility key. Outcome fields can never ' +
