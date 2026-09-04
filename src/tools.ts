@@ -700,11 +700,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'historical occurrences and what followed. It returns the exact definition, counts with ' +
         'denominators, forward outcomes over all matches, an unconditional same-scope reference ' +
         'baseline when available, a reproducibility key, and replay-linked representatives. Read ' +
-        'rates from outcomes_summary and use each horizon\'s present count as its denominator. Do not ' +
+        'rates from outcomes_summary and use each horizon\'s present count as its denominator; ' +
+        'horizons run from 30m to 7d, and a horizon absent for an occurrence is a record-edge ' +
+        'fact that is counted absent, never a small value. Do not ' +
         'use this for live quotes, personalized buy/sell advice, trade execution, prose ' +
         'interpretation, or outcome filtering. ' +
         CONFIRM_GATE_CONTRACT +
         ' sequence.within accepts 15m/30m/1h/4h/12h/24h and the matching ISO aliases. ' +
+        'sort accepts times.anchor_time, outcome.mfe_24h or outcome.mfe_7d, asc or desc: an ' +
+        'outcome sort orders the returned page only (the biggest runs first, and the ' +
+        'max_mfe_7d representative carries a replay handoff to the biggest one) and changes no ' +
+        'count or rate; outcome.* in a predicate is still OUTCOME_IN_PREDICATE. ' +
         'identity.symbol must be an exact lowercase Binance USDT-M perpetual symbol. A fresh ' +
         'initial scan can consume research allowance units; cache hits, continuations, reruns, and ' +
         '304 revalidations are free.',

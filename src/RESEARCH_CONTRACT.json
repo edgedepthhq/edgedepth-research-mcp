@@ -1,7 +1,7 @@
 {
-  "result_encoding": "record_result.v6",
-  "cohort_encoding": "cohort_result.v4",
-  "stratified_encoding": "stratified_result.v3",
+  "result_encoding": "record_result.v7",
+  "cohort_encoding": "cohort_result.v5",
+  "stratified_encoding": "stratified_result.v4",
   "features": [
     "feature.book_imbalance",
     "feature.book_imbalance_pctrank",
@@ -58,6 +58,14 @@
     "feature.vwap_dist"
   ],
   "feature_count": 53,
+  "horizons": [
+    "30m",
+    "1h",
+    "4h",
+    "24h",
+    "72h",
+    "7d"
+  ],
   "metrics": [
     "fwd_ret_30m",
     "mfe_30m",
@@ -70,9 +78,15 @@
     "mae_4h",
     "fwd_ret_24h",
     "mfe_24h",
-    "mae_24h"
+    "mae_24h",
+    "fwd_ret_72h",
+    "mfe_72h",
+    "mae_72h",
+    "fwd_ret_7d",
+    "mfe_7d",
+    "mae_7d"
   ],
-  "metric_count": 12,
+  "metric_count": 18,
   "gte_thresholds": [
     0.001,
     0.002,
@@ -136,11 +150,27 @@
   "gte_threshold_count": 14,
   "lte_threshold_count": 12,
   "return_floor": -1,
+  "sort_fields": [
+    "times.anchor_time",
+    "outcome.mfe_24h",
+    "outcome.mfe_7d"
+  ],
+  "representatives": [
+    "max_fwd_ret_30m",
+    "min_fwd_ret_30m",
+    "median_fwd_ret_30m",
+    "min_mae_1h",
+    "max_mfe_24h",
+    "max_mfe_7d"
+  ],
   "notes": [
     "The gte and lte ladders are deliberately different lengths: the negative side truncates at the total-loss floor because every summarized metric is a return ratio and cannot pass -1.",
     "Bucket closure convention: negative values fall right-closed (lo, hi]; non-negative values fall left-closed [lo, hi). This makes every threshold count an exact partial sum of bucket counts.",
     "present + absent equals the occurrence total for every metric. An absent outcome is counted, never implied to be zero.",
     "Rates come from outcomes_summary over all occurrences; page rows are examples, never the denominator.",
+    "Horizon completeness: an anchor closer to the record edge than a horizon reads absent for that horizon and is counted absent, never truncated. With the 7d horizon the last seven days of the record are absent at 7d by construction.",
+    "Representatives are selected on the named outcome metric over the complete result before paging (representatives_note says so in the bytes): examples of what followed, never rates.",
+    "The outcome sort fields order the page only: counts, outcomes_summary, counts_by_symbol, predicate_coverage and representatives are identical under every sort of the same definition. outcome.* remains forbidden in predicates (OUTCOME_IN_PREDICATE).",
     "Any change to this descriptor is a result-encoding bump, because these lists join the serving cache and ETag keys."
   ]
 }
