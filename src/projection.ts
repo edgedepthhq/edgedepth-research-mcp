@@ -479,3 +479,136 @@ export function projectRegistry(raw: string, opts: RegistryProjection): LeanResu
   if (notes.length === 0) return null
   return { bodyText: JSON.stringify(doc), notes }
 }
+
+/* ── The outcome-first door ──────────────────────────────────────────
+   outcome_first_result.v1 (task outcome-first-door; the engine side is
+   internal/research/outcome_first.go). Its shape is rows x offsets: one
+   row per band per lead-up offset, each carrying a whole setup-first
+   research_query.v2 rerun document, which is roughly 150 rows and the
+   overwhelming majority of the bytes.
+
+   The SAME discipline as the scan projection applies, and the rules the
+   audit set are worth restating because this body is where a slip would
+   be easiest: response-side only, only ever REMOVE, never touch a
+   denominator, state every removal, and scope the ETag so one
+   projection can never 304 against another.
+
+   What is removed, and why it is safe to remove:
+    - the row TAIL beyond the top 12 in the bytes' OWN order. That order
+      is excess descending and is the engine's, not ours: this reorders
+      nothing and ranks nothing. The note states the count and says the
+      order is display order.
+    - each kept row's setup_first_rerun DOCUMENT, keeping its hash. The
+      row still carries field, operator, value and the reader sentence,
+      which is the clause the document tests, so nothing about what the
+      row says is lost; what is lost is the ability to hand the document
+      straight to run_scan, and full_rows: true returns it.
+    - the sampled EPISODE list. population.sampled_episodes still states
+      how many were read and by what rule, and replays carry the three
+      the answer contract asks for.
+    - the canonical query echo, which the tool already prints verbatim
+      as its own block above the body, and whose hash is in
+      reproducibility_key.
+
+   What is NEVER removed: reproducibility_key, target, population,
+   feasibility (including its floor and its reasons), pointed, offsets,
+   replays, notes, and unbanded_readings. The last one is a handful of
+   short ids and is honesty-bearing in the same way notes are (it names
+   the readings that were counted in nothing), so it stays whole rather
+   than saving a few hundred bytes. */
+
+/** Rows kept by default. Twelve is enough to read the shape of the
+ *  lead-up across all five offsets without carrying the whole grid. */
+export const DEFAULT_OUTCOME_FIRST_ROWS = 12
+
+export interface OutcomeFirstLeanOptions {
+  /** rows to keep, in the bytes' own order */
+  rows: number
+  /** keep every row AND its whole setup-first rerun document */
+  fullRows: boolean
+}
+
+export const DEFAULT_OUTCOME_FIRST_LEAN: OutcomeFirstLeanOptions = {
+  rows: DEFAULT_OUTCOME_FIRST_ROWS,
+  fullRows: false,
+}
+
+/** The ETag tag for one outcome-first projection. Every knob that
+ *  changes the bytes is in here. */
+export function outcomeFirstProjectionTag(opts: OutcomeFirstLeanOptions): string {
+  if (opts.fullRows) return `${COMPACT_TAG}.of.full`
+  return `${COMPACT_TAG}.of.r${Math.max(0, Math.trunc(opts.rows))}`
+}
+
+export function leanOutcomeFirstBody(
+  bodyText: string,
+  opts: OutcomeFirstLeanOptions = DEFAULT_OUTCOME_FIRST_LEAN,
+): LeanResult | null {
+  if (opts.fullRows) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(bodyText)
+  } catch {
+    return null
+  }
+  if (!isRecord(parsed)) return null
+  const body = parsed as Record<string, unknown>
+  const notes: string[] = []
+
+  // 1. The row tail, in the engine's own order.
+  if (Array.isArray(body.rows)) {
+    const total = body.rows.length
+    const limit = Math.max(0, Math.trunc(opts.rows))
+    const kept = body.rows.slice(0, limit)
+    let strippedDocs = 0
+    const rows = kept.map((row) => {
+      if (!isRecord(row) || row.setup_first_rerun === undefined) return row
+      const { setup_first_rerun: _rerun, ...rest } = row
+      strippedDocs += 1
+      return rest
+    })
+    if (total > kept.length) {
+      notes.push(
+        `rows: ${total - kept.length} of ${total} row(s) omitted, keeping the first ` +
+          `${kept.length} in the body's OWN order. That order is the gap between the two counted ` +
+          'shares, descending; it is the order the engine wrote and nothing here reorders or ' +
+          'ranks anything. A row is not a rule, a candidate or a finding. Pass full_rows: true ' +
+          'for every row.',
+      )
+    }
+    if (strippedDocs > 0) {
+      notes.push(
+        `rows[].setup_first_rerun: the document is omitted on ${strippedDocs} row(s); its ` +
+          'setup_first_rerun_hash is untouched, and each row still carries the field, operator, ' +
+          'value and sentence that document tests. Pass full_rows: true to get the exact ' +
+          'research_query.v2 documents so run_scan can re-test a row setup first, which is where ' +
+          'the honest rate lives.',
+      )
+    }
+    if (rows.length !== total || strippedDocs > 0) body.rows = rows
+  }
+
+  // 2. The sampled episode list. The counts that describe it stay.
+  if (Array.isArray(body.episodes) && body.episodes.length > 0) {
+    const episodes = body.episodes.length
+    delete body.episodes
+    notes.push(
+      `episodes: the ${episodes} sampled entr(ies) omitted. population.sampled_episodes and ` +
+        'population.sample_rule still state how many were read and by what rule, both untouched, ' +
+        'and replays carries the earliest, middle and latest of them with their coordinates.',
+    )
+  }
+
+  // 3. The canonical query echo, which the tool prints above the body.
+  if (body.query !== undefined) {
+    delete body.query
+    notes.push(
+      'query: the canonical request echo omitted, because the tool prints the exact document it ' +
+        'sent as its own block above this body, and reproducibility_key.canonical_query_hash ' +
+        'names those same bytes.',
+    )
+  }
+
+  if (notes.length === 0) return null
+  return { bodyText: JSON.stringify(body), notes }
+}

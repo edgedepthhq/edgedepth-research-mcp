@@ -20,6 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 
 import { getRegistry } from './registry.js'
+import { OUTCOME_HORIZONS, OUTCOME_LADDER, OUTCOME_LADDER_DOWN_MAX } from './repair.js'
 import type { ToolContext } from './tools.js'
 
 /** The shared closing instruction: one definition, one denominated result, one
@@ -149,6 +150,52 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
       ),
   )
 
+  server.registerPrompt(
+    'what_preceded_moves_like_this',
+    {
+      title: 'What preceded moves like this? (outcome first)',
+      description:
+        'Start from the move rather than from a setup: define the outcome exactly, read what ' +
+        'the record was doing before every move like it, then re-test one reading setup first, ' +
+        'which is where the honest rate lives.',
+      argsSchema: {
+        move: z
+          .string()
+          .optional()
+          .describe(
+            'The move to start from, e.g. "10 percent up within 4 hours". Omit for the worked ' +
+              'example.',
+          ),
+        scope: z
+          .string()
+          .optional()
+          .describe('Optional markets, e.g. "AI sector perps" or a comma-separated list.'),
+      },
+    },
+    ({ move, scope }) =>
+      userPrompt(
+        `What preceded ${move ?? '10 percent up moves within 4 hours'} on ` +
+          `${scope ?? 'AI-sector perps'}, over the last 90 complete UTC days? Use EdgeDepth:\n` +
+          '1. list_instruments to pick the markets, because a scope of fewer than five markets ' +
+          'is always refused and one market always is.\n' +
+          '2. outcome_first with kind: "reached", direction: "up", magnitude: 0.1 (a ladder rung, ' +
+          'as a fraction) and horizon: "4h". Show me the exact document before you run it.\n' +
+          '3. Report the population first: how many realised moves, on how many markets, over ' +
+          'how many days, and the unconditional rate with the counts it came from. If it refuses, ' +
+          'give me the reasons and the four adjustments and stop; a refusal costs nothing.\n' +
+          '4. Then the rows. Every row is SELECTED ON THE OUTCOME: say so. Give me both counted ' +
+          'shares per row (before these moves, and usually), never a rate without its count, and ' +
+          'do not call any row a rule, a candidate, a finding or something that works. The order ' +
+          'is the gap between the two shares, which is display order, not a ranking.\n' +
+          '5. Pick ONE row, fetch its setup-first rerun document with full_rows: true, and run it ' +
+          'through run_scan. That asks the opposite question, out of every minute that looked ' +
+          'like this how many were followed by the move, and THAT rate is the honest one. Tell me ' +
+          'how far the two differ.\n' +
+          '6. Quote the honesty notes from the result verbatim, and give me one replay handoff ' +
+          'with how far back it sits.',
+      ),
+  )
+
   // The grammar, attachable once instead of paid for per session. Reads use
   // the caller's own credential, exactly like list_features.
   server.registerResource(
@@ -176,4 +223,61 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
       }
     },
   )
+
+  /* The outcome-first door's closed TARGET grammar. A separate resource
+     rather than an addition to the one above, because that one returns
+     the API's registry bytes VERBATIM and injecting into them would end
+     the byte identity list_features depends on. This one is static,
+     owned by this package, needs no credential and no round trip, and
+     says the two things an agent gets wrong: the magnitude is a
+     fraction on a closed ladder, and the horizon is a suffix. */
+  server.registerResource(
+    'outcome-first-grammar',
+    'edgedepth://research/outcome-first',
+    {
+      title: 'EdgeDepth outcome-first target grammar',
+      description:
+        'The closed target grammar for the outcome_first tool: the outcome ladder as fractions, ' +
+        'the closed horizon suffixes, the two kinds and two directions, and the scope floor a ' +
+        'thin population is refused against.',
+      mimeType: 'application/json',
+    },
+    (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: 'application/json',
+          text: JSON.stringify(OUTCOME_FIRST_GRAMMAR, null, 2),
+        },
+      ],
+    }),
+  )
 }
+
+/**
+ * The door's closed grammar, as the agent needs to see it. Mirrors
+ * internal/research/outcome_first.go and the Phase 0 scope floor; it is
+ * documentation, and the engine remains the thing that decides.
+ */
+export const OUTCOME_FIRST_GRAMMAR = {
+  schema_version: 'outcome_first_query.v1',
+  result_encoding: 'outcome_first_result.v1',
+  kind: ['reached', 'finished'],
+  direction: ['up', 'down'],
+  magnitude_ladder: OUTCOME_LADDER,
+  magnitude_unit: 'fraction of the anchor close, not a percentage: 0.1 is ten percent',
+  magnitude_down_cap: OUTCOME_LADDER_DOWN_MAX,
+  horizons: OUTCOME_HORIZONS,
+  horizon_unit: 'closed suffix, not an ISO duration',
+  lead_up_offsets: ['1m', '15m', '1h', '4h', '24h'],
+  scope_floor: {
+    min_episodes: 20,
+    min_utc_days: 8,
+    min_symbols: 5,
+    max_day_share: 0.35,
+    max_symbol_share: 0.35,
+    note: 'A scope under the floor is REFUSED with its exact counts and four adjustments, and the refusal spends no allowance. One market always refuses.',
+  },
+  reading:
+    'A descriptive read over the population where the outcome held, never a rule search. Every row is selected on the outcome and carries two counted shares plus a setup-first rerun; the rerun is where the honest rate lives.',
+} as const

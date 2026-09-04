@@ -43,7 +43,7 @@ describe('release identity is consistent', () => {
 })
 
 describe('tool schema', () => {
-  it('exposes exactly the eleven research tools', async () => {
+  it('exposes exactly the twelve research tools', async () => {
     const client = await connectClient()
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -54,6 +54,7 @@ describe('tool schema', () => {
       'list_features',
       'list_instruments',
       'next_page',
+      'outcome_first',
       'run_cohort',
       'run_scan',
       'run_stratified',
@@ -108,6 +109,19 @@ describe('tool schema', () => {
       base_rate: ['field', 'from', 'operator', 'symbol', 'to', 'value'],
       commonality: ['moments'],
       get_report: ['hash8'],
+      outcome_first: [
+        'direction',
+        'from',
+        'full_rows',
+        'horizon',
+        'if_none_match',
+        'kind',
+        'magnitude',
+        'pointed',
+        'rows',
+        'symbols',
+        'to',
+      ],
     })
   })
 
@@ -130,6 +144,7 @@ describe('tool schema', () => {
       get_report: closedRead,
       run_cohort: meteredCompute,
       run_stratified: meteredCompute,
+      outcome_first: meteredCompute,
     })
   })
 

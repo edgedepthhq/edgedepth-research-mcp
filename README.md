@@ -167,8 +167,9 @@ include the full reproducibility key.
 | `get_report` | Retrieves a published report by its 8-character canonical hash. |
 | `run_cohort` | Compares what followed every match with what followed every other eligible predicate-false bucket. |
 | `run_stratified` | Partitions one matched population at its existing anchors into split-true, split-false, and split-absent outcome summaries. |
+| `outcome_first` | Starts from the MOVE instead of the setup: names an outcome (size, direction, horizon) and reports what the record was doing at five fixed offsets before every realised move like it. Each row carries two counted shares, the share before these moves and the share across every eligible minute in the same scope, plus the setup-first rerun that re-tests it the other way round. A descriptive read, never a rule search: a row is not a rule, a candidate or a finding, and the row order is display order. A scope with too few realised moves is refused with its counts and four adjustments, and a refusal spends nothing. Projected by default (`rows`, `full_rows`). |
 
-No tool can trade, change market state, publish, or modify account data. `run_scan`, `run_cohort`, and `run_stratified` are annotated as metered computations because a fresh call can irreversibly consume an allowance unit. The other recorded-data tools are closed-world reads. `interpret_prose` is a free read that uses the configured external language interpreter.
+No tool can trade, change market state, publish, or modify account data. `run_scan`, `run_cohort`, `run_stratified` and `outcome_first` are annotated as metered computations because a fresh call can irreversibly consume an allowance unit. The other recorded-data tools are closed-world reads. `interpret_prose` is a free read that uses the configured external language interpreter.
 
 ## Research contract
 

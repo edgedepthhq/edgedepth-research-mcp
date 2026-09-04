@@ -80,7 +80,35 @@ export function nearestFeatures(unknown: string, known: string[], limit = 3): st
 
 interface ContractError {
   code?: unknown
+  field?: unknown
   message?: unknown
+}
+
+/**
+ * The outcome-first door's closed target grammar, restated here ONLY to
+ * word a repair note. It is not a second source of truth: the door's
+ * tool input schema carries the same two lists, both mirroring
+ * internal/research/outcomes.go and the outcome ladder, and the engine
+ * is the thing that decides.
+ */
+export const OUTCOME_HORIZONS = ['30m', '1h', '4h', '24h', '72h', '7d'] as const
+export const OUTCOME_LADDER = [
+  0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1, 2, 4,
+] as const
+export const OUTCOME_LADDER_DOWN_MAX = 1
+
+/** The rung nearest a value, for the off-ladder refusal the tool itself
+ *  raises (the API accepts any positive magnitude; a population defined
+ *  on an off-ladder number is a cache key nobody else ever hits, so the
+ *  door and the terminal only ever send rungs). */
+export function nearestLadderRung(value: number, direction: 'up' | 'down'): number {
+  const ceiling = direction === 'down' ? OUTCOME_LADDER_DOWN_MAX : Infinity
+  const allowed = OUTCOME_LADDER.filter((rung) => rung <= ceiling)
+  let best = allowed[0] as number
+  for (const rung of allowed) {
+    if (Math.abs(rung - value) < Math.abs(best - value)) best = rung
+  }
+  return best
 }
 
 /**
@@ -153,6 +181,47 @@ export function repairNote(bodyText: string, known: string[]): string | null {
       lines.push(
         'identity.symbol takes exact lowercase Binance USDT-M perpetual symbols only: case ' +
           'folding, aliases, separators and whitespace are all rejected rather than repaired.' +
+          (quoted && lowered !== quoted
+            ? ` "${quoted}" differs from "${lowered}" only in case - check "${lowered}" with ` +
+              'list_instruments and re-run.'
+            : ' Check membership with list_instruments before re-running.'),
+      )
+    }
+
+    // The outcome-first door's own closed grammar (task
+    // outcome-first-door). Its refusals carry the offending path in
+    // `field` (target.horizon, target.magnitude) rather than in the
+    // message, so these read both, and the registry hints above never
+    // fire for them: this is the whole repair for that tool.
+    const where = `${typeof entry.field === 'string' ? entry.field : ''} ${message}`
+    if (/target\.horizon/.test(where)) {
+      lines.push(
+        'target.horizon is a closed suffix, not an ISO duration and not a free interval: ' +
+          `${OUTCOME_HORIZONS.join(', ')}. "PT4H" and "4 hours" are both refused rather than ` +
+          'repaired.',
+      )
+    }
+    if (/target\.magnitude/.test(where)) {
+      lines.push(
+        'target.magnitude is a rung of the outcome ladder, as a FRACTION: ' +
+          `${OUTCOME_LADDER.join(', ')}. Down is capped at ${OUTCOME_LADDER_DOWN_MAX}, because a ` +
+          'return cannot fall past total loss. 10 would mean a 1000 percent move; ten percent is 0.1.',
+      )
+    }
+    if (/target\.kind|target\.direction/.test(where)) {
+      lines.push(
+        'target.kind is reached (the extreme at any point inside the horizon) or finished (the ' +
+          'close at the end of it), and target.direction is up or down. The grammar is closed, so ' +
+          'no other word is repaired into one of these.',
+      )
+    }
+    if (/is not a lowercase perp symbol/.test(message)) {
+      const quoted = message.match(/"([^"]+)"/)?.[1]
+      const lowered = quoted?.toLowerCase()
+      lines.push(
+        'symbols and pointed.symbol take exact lowercase Binance USDT-M perpetuals. The recorded ' +
+          'universe also advertises pairs the query grammar cannot name, and ONE of them refuses ' +
+          'the whole document.' +
           (quoted && lowered !== quoted
             ? ` "${quoted}" differs from "${lowered}" only in case - check "${lowered}" with ` +
               'list_instruments and re-run.'

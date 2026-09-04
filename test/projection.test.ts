@@ -263,6 +263,7 @@ describe('prompts and resources (the examples an agent can reach)', () => {
       'investigate_symbol',
       'liquidation_cascade_bounce',
       'test_a_claim',
+      'what_preceded_moves_like_this',
     ])
   })
 
@@ -284,7 +285,10 @@ describe('prompts and resources (the examples an agent can reach)', () => {
     fetchMock.mockResolvedValue(new Response(registryBytes, { status: 200 }))
     const client = await connectClient()
     const { resources } = await client.listResources()
-    expect(resources.map((r) => r.uri)).toEqual(['edgedepth://research/grammar'])
+    expect(resources.map((r) => r.uri).sort()).toEqual([
+      'edgedepth://research/grammar',
+      'edgedepth://research/outcome-first',
+    ])
     const read = await client.readResource({ uri: 'edgedepth://research/grammar' })
     expect((read.contents[0] as { text: string }).text).toBe(registryBytes)
   })

@@ -1,6 +1,6 @@
 /**
  * tools - the one tool core (design doc RESEARCH_API_MCP_DESIGN
- * 2026-07-18 section 3.3, FROZEN). Eleven research tools, each a thin
+ * 2026-07-18 section 3.3, FROZEN). Twelve research tools, each a thin
  * wrapper over the phase-A/B REST surface. No definitions, no alerts,
  * no publish - research-only v1.
  *
@@ -21,16 +21,28 @@ import { z } from 'zod'
 import { apiRequest, type ApiResponse } from './apiClient.js'
 import {
   COMPACT_TAG,
+  DEFAULT_OUTCOME_FIRST_ROWS,
   DEFAULT_ROWS,
   DEFAULT_SYMBOLS,
+  leanOutcomeFirstBody,
   leanScanBody,
   leanSummaryBody,
+  outcomeFirstProjectionTag,
   projectRegistry,
   projectionTag,
   type LeanOptions,
+  type OutcomeFirstLeanOptions,
 } from './projection.js'
 import { getRegistry } from './registry.js'
-import { needsRegistry, registryFeatureIds, repairNote } from './repair.js'
+import {
+  OUTCOME_HORIZONS,
+  OUTCOME_LADDER,
+  OUTCOME_LADDER_DOWN_MAX,
+  nearestLadderRung,
+  needsRegistry,
+  registryFeatureIds,
+  repairNote,
+} from './repair.js'
 
 export interface ToolContext {
   apiBase: string
@@ -357,6 +369,83 @@ async function withRepair(
   return result
 }
 
+
+/** Verbatim-or-projected passthrough for outcome_first bytes. The ETag is
+ *  projection-scoped exactly as the scan family's is, so a caller holding
+ *  the 12-row projection can never be told 304 "identical result" for the
+ *  full-rows body. */
+function outcomeFirstPassthrough(
+  res: ApiResponse,
+  opts: OutcomeFirstLeanOptions,
+  on304?: string,
+): ToolResult {
+  const scopedHeaders = {
+    ...res.headers,
+    etag: scopeEtag(res.headers.etag, outcomeFirstProjectionTag(opts)),
+  }
+  if (res.notModified) return passthrough({ ...res, headers: scopedHeaders }, on304)
+  if (!res.ok || !res.bodyText) return passthrough(res, on304)
+  const lean = leanOutcomeFirstBody(res.bodyText, opts)
+  if (!lean) return passthrough({ ...res, headers: scopedHeaders }, on304)
+  const result = passthrough({ ...res, bodyText: lean.bodyText, headers: scopedHeaders }, on304)
+  result.content.push(
+    text(`projection (only removals; nothing recomputed):\n- ${lean.notes.join('\n- ')}`),
+  )
+  return result
+}
+
+/** The replay handoffs an outcome_first result carries: earliest, middle,
+ *  latest and, when the caller pointed at one, their own move. Same web
+ *  link shape and the same age annotation the scan family uses, so an
+ *  agent never promises a replay the caller's plan cannot reach. */
+function outcomeFirstHandoffs(res: ApiResponse): TextBlock | null {
+  if (!res.ok || !res.bodyText) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(res.bodyText)
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object') return null
+  const body = parsed as Record<string, unknown>
+  const replays = Array.isArray(body.replays) ? body.replays : []
+  const key = body.reproducibility_key as Record<string, unknown> | undefined
+  const hash = typeof key?.canonical_query_hash === 'string' ? key.canonical_query_hash : ''
+  const links: string[] = []
+  for (const value of replays) {
+    if (!value || typeof value !== 'object') continue
+    const entry = value as Record<string, unknown>
+    const replay = entry.replay as Record<string, unknown> | undefined
+    if (!replay || typeof replay.symbol !== 'string') continue
+    const from = Date.parse(String(replay.from ?? ''))
+    const to = Date.parse(String(replay.to ?? ''))
+    const seek = Date.parse(String(replay.seek ?? ''))
+    if (![from, to, seek].every(Number.isFinite)) continue
+    const params = new URLSearchParams({
+      replay: replay.symbol,
+      from: String(from),
+      to: String(to),
+      t: String(seek),
+    })
+    if (hash) params.set('marker', `of:${hash.slice(0, 8)}`)
+    const ageDays = Math.floor((Date.now() - seek) / 86_400_000)
+    const age = Number.isFinite(ageDays) && ageDays >= 0 ? ` [${ageDays}d back]` : ''
+    links.push(
+      `${String(entry.role ?? 'episode')}: https://app.edgedepth.com/terminal?${params.toString()}${age}`,
+    )
+  }
+  if (links.length === 0) return null
+  return text(
+    'Replay handoffs (earliest, middle and latest by time, never the most dramatic, plus the ' +
+      'pointed move when one was given):\n' +
+      links.join('\n') +
+      '\nEach [Nd back] is how far back that move sits from now. Replay reach is a per-account ' +
+      'entitlement counted back from now, so a handoff older than the caller reach is refused at ' +
+      'the web surface even though the move is real. Offer the link, say how far back it is, and ' +
+      'do not promise it will play.',
+  )
+}
+
 /** Shared input schema for the three scan-family tools. */
 const ROWS_INPUT = {
   rows: z
@@ -406,7 +495,7 @@ const METERED_COMPUTE = {
   openWorldHint: false,
 } as const
 
-/** Registers the eleven research tools on an McpServer. */
+/** Registers the twelve research tools on an McpServer. */
 export function registerResearchTools(server: McpServer, ctx: ToolContext): void {
   // 1. list_features - the grounding tool.
   server.registerTool(
@@ -1169,6 +1258,180 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         ctx,
         key,
       )
+    },
+  )
+
+  // 12. outcome_first - the outcome-first DOOR (task outcome-first-door).
+  //     Start from the MOVE, read what preceded moves like it. A
+  //     descriptive read over the outcome population, never the
+  //     discovery miner: it searches no rule space and claims no
+  //     survivor, and the tool contract says so in the words the agent
+  //     will repeat.
+  server.registerTool(
+    'outcome_first',
+    {
+      title: 'What preceded moves like this',
+      description:
+        'Use this when the user starts from an OUTCOME (a move of a stated size, in a stated ' +
+        'direction, inside a stated horizon) and wants to know what the record was doing in the ' +
+        'minutes before every move like it. It returns the outcome population with its ' +
+        'denominators, a feasibility verdict, and one row per reading per lead-up offset carrying ' +
+        'TWO counted shares: how often that reading sat outside its usual band before these ' +
+        'moves, and how often it did so across every eligible minute in the same scope. ' +
+        'Every row is labelled selected on the outcome. A row is NOT a rule, a candidate, a ' +
+        'finding or a predictor, and the row order is the gap between those two shares, which is ' +
+        'display order and not a ranking: never present a row as something that works. The ' +
+        'honest rate is the setup-first rerun each row carries, which run_scan re-tests the ' +
+        'other way round; quote a row only after running it. Do not use this to filter outcomes, ' +
+        'to mine for a strategy, or to recommend a trade. A scope with too few realised moves is ' +
+        'REFUSED with the counts and four honest adjustments rather than answered underpowered, ' +
+        'and a refusal spends no allowance. ' +
+        CONFIRM_GATE_CONTRACT +
+        ' A one-market scope always refuses (the floor is five markets), so scope to a sector or ' +
+        'a volume tier. A fresh read can consume research allowance units; cache hits, reruns and ' +
+        '304 revalidations are free.',
+      inputSchema: {
+        kind: z
+          .enum(['reached', 'finished'])
+          .describe(
+            'reached: the extreme touched the size at any point inside the horizon. finished: ' +
+              'the close was there at the end of it.',
+          ),
+        direction: z.enum(['up', 'down']).describe('up or down.'),
+        magnitude: z
+          // A union, not a bare number, for the same reason base_rate's
+          // value is one: some MCP clients erase the type and send every
+          // argument as a string, and a bare z.number() then makes the
+          // tool uncallable rather than repairable. coerceJsonish turns
+          // "0.1" into 0.1 below; anything else is refused, never guessed.
+          .union([z.number(), z.string()])
+          .describe(
+            'A rung of the outcome ladder, as a FRACTION: ' +
+              OUTCOME_LADDER.join(', ') +
+              `. Down is capped at ${OUTCOME_LADDER_DOWN_MAX}. 0.1 is a ten percent move; 10 ` +
+              'would be a thousand percent. Off-ladder values are refused with the nearest rung ' +
+              'named, because a population defined on a free number is a population of one.',
+          ),
+        horizon: z
+          .enum(OUTCOME_HORIZONS)
+          .describe('A closed suffix: ' + OUTCOME_HORIZONS.join(', ') + '. Not an ISO duration.'),
+        from: z.string().describe('Window start, RFC3339.'),
+        to: z.string().describe('Window end, RFC3339.'),
+        symbols: z
+          .union([z.string(), z.array(z.string())])
+          .optional()
+          .describe(
+            'Scope: a JSON array of lowercase perps (max 800), or one symbol. Omit for the whole ' +
+              'universe. A string-encoded array is repaired deterministically. Fewer than five ' +
+              'markets always refuses.',
+          ),
+        pointed: z
+          .object({ symbol: z.string(), at: z.string() })
+          .optional()
+          .describe(
+            'Optional: one move the user is asking about, { symbol, at: RFC3339 }. It must lie ' +
+              'inside the window and the scope, and the result says whether it is inside the ' +
+              'population it is being compared with.',
+          ),
+        if_none_match: z
+          .string()
+          .optional()
+          .describe(
+            'An ETag from a previous outcome_first run to revalidate: identical data answers 304 ' +
+              'and spends nothing. Pass it back verbatim (it may be weak, W/"...").',
+          ),
+        rows: z
+          .number()
+          .int()
+          .min(0)
+          .max(400)
+          .optional()
+          .describe(
+            `How many rows to keep in the returned projection (default ${DEFAULT_OUTCOME_FIRST_ROWS}). ` +
+              'The full body is roughly 150 rows, each carrying a whole rerun document. Every ' +
+              'count and both shares on a kept row are untouched.',
+          ),
+        full_rows: z
+          .boolean()
+          .optional()
+          .describe(
+            "True returns the engine's verbatim canonical bytes: every row, every " +
+              'setup_first_rerun document, and the sampled episode list. That is the way to get ' +
+              'a rerun document to hand to run_scan. It is large and can exceed a client ' +
+              'tool-result limit.',
+          ),
+      },
+      annotations: METERED_COMPUTE,
+    },
+    async ({ kind, direction, magnitude, horizon, from, to, symbols, pointed, if_none_match, rows, full_rows }) => {
+      const key = ctx.getKey()
+      if (!key) return noKey()
+      // Repair client serialization drift before anything is judged:
+      // "0.1" -> 0.1 and "[\"btcusdt\"]" -> ["btcusdt"].
+      const coercedMagnitude = coerceJsonish(magnitude)
+      const coercedSymbols = symbols === undefined ? undefined : coerceJsonish(symbols)
+      const value = typeof coercedMagnitude === 'number' ? coercedMagnitude : Number.NaN
+      // The API accepts any positive magnitude; the door and the terminal
+      // only ever send rungs, and a population defined on a free number
+      // shares its cache key with nobody. Refusing here, with the nearest
+      // rung named, costs no round trip and no allowance.
+      if (!(OUTCOME_LADDER as readonly number[]).includes(value)) {
+        const nearest = Number.isFinite(value) ? nearestLadderRung(value, direction) : 0.1
+        return {
+          isError: true,
+          content: [
+            text(
+              `magnitude ${JSON.stringify(magnitude)} is not a rung of the outcome ladder. The ` +
+                `ladder, as fractions: ${OUTCOME_LADDER.join(', ')} (down is capped at ` +
+                `${OUTCOME_LADDER_DOWN_MAX}). The nearest rung is ${nearest}. Nothing was sent ` +
+                'and nothing was spent. The ladder is closed on purpose: an exact user magnitude ' +
+                'would make a population of one and a cache entry nobody else ever hits.',
+            ),
+          ],
+        }
+      }
+      const symbolList =
+        coercedSymbols === undefined
+          ? undefined
+          : Array.isArray(coercedSymbols)
+            ? coercedSymbols.map(String)
+            : [String(coercedSymbols)]
+      const document: Record<string, unknown> = {
+        schema_version: 'outcome_first_query.v1',
+        window: { from, to },
+        target: { kind, direction, magnitude: value, horizon },
+      }
+      if (symbolList && symbolList.length > 0) document.symbols = symbolList
+      if (pointed) document.pointed = pointed
+      const lean: OutcomeFirstLeanOptions = {
+        rows:
+          typeof rows === 'number'
+            ? Math.max(0, Math.min(400, Math.trunc(rows)))
+            : DEFAULT_OUTCOME_FIRST_ROWS,
+        fullRows: full_rows === true,
+      }
+      const res = await apiRequest(ctx.apiBase, {
+        method: 'POST',
+        path: '/outcome-first',
+        key,
+        body: document,
+        ifNoneMatch: full_rows
+          ? if_none_match
+          : (unscopeEtag(if_none_match, outcomeFirstProjectionTag(lean)) ?? if_none_match),
+      })
+      const result = full_rows
+        ? passthrough(res, 'Re-run the same inputs without If-None-Match to fetch the cached bytes (still free).')
+        : outcomeFirstPassthrough(
+            res,
+            lean,
+            'Re-run the same inputs without If-None-Match to fetch the cached bytes (still free).',
+          )
+      result.content.unshift(
+        text('outcome_first document (echo this to the user):\n' + JSON.stringify(document)),
+      )
+      const handoffs = outcomeFirstHandoffs(res)
+      if (handoffs) result.content.push(handoffs)
+      return withRepair(result, res, ctx, key)
     },
   )
 }
