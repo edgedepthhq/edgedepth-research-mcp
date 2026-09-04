@@ -3,7 +3,7 @@
   "name": "com.edgedepth/research",
   "title": "EdgeDepth Research",
   "description": "Test crypto and TradFi-perpetual claims using recorded counts, baselines, and replay.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "repository": {
     "url": "https://github.com/edgedepthhq/edgedepth-research-mcp",
     "source": "github"
@@ -18,7 +18,7 @@
     {
       "registryType": "npm",
       "identifier": "@edgedepth/research-mcp",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "transport": {
         "type": "stdio"
       },

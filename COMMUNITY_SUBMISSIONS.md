@@ -11,7 +11,7 @@ curated listing sooner. House rule: no em-dashes.
 | --- | --- |
 | Name | EdgeDepth Research |
 | Registry name | `com.edgedepth/research` |
-| npm package | `@edgedepth/research-mcp` (0.5.0, MIT) |
+| npm package | `@edgedepth/research-mcp` (0.5.1, MIT) |
 | One-line install | `npx -y @edgedepth/research-mcp` |
 | Remote (Streamable HTTP) | `https://mcp.edgedepth.com/mcp` |
 | Repository | `https://github.com/edgedepthhq/edgedepth-research-mcp` |
