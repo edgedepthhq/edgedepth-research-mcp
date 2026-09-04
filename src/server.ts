@@ -6,6 +6,7 @@
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
+import { registerResearchPrompts } from './prompts.js'
 import { SERVER_NAME, SERVER_VERSION } from './version.js'
 import { registerResearchTools, type ToolContext } from './tools.js'
 
@@ -17,6 +18,9 @@ const INSTRUCTIONS =
   'document and list_instruments to verify symbol coverage or provenance. Answer as: one exact ' +
   'definition, one denominated result, one unconditional same-scope reference rate when available, ' +
   'one contradictory example when the result actually identifies one, and one replay handoff. ' +
+  'Scan-family results come back as a stated projection: rows are thinned examples and every ' +
+  'removal is listed, so read counts and rates from counts and outcomes_summary, raise rows for ' +
+  'more examples, and pass full_counts only when verbatim canonical bytes are required. ' +
   'Never invent a baseline or counterexample, call the unconditional baseline comparable, ' +
   'recommend a buy/sell decision, or execute a trade. Read rates from outcomes_summary over all ' +
   'occurrences, never from page rows, and echo the reproducibility key. Outcome fields can never ' +
@@ -29,5 +33,6 @@ export function createResearchMcpServer(ctx: ToolContext): McpServer {
     { instructions: INSTRUCTIONS },
   )
   registerResearchTools(server, ctx)
+  registerResearchPrompts(server, ctx)
   return server
 }

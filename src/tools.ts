@@ -19,7 +19,18 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 
 import { apiRequest, type ApiResponse } from './apiClient.js'
+import {
+  COMPACT_TAG,
+  DEFAULT_ROWS,
+  DEFAULT_SYMBOLS,
+  leanScanBody,
+  leanSummaryBody,
+  projectRegistry,
+  projectionTag,
+  type LeanOptions,
+} from './projection.js'
 import { getRegistry } from './registry.js'
+import { needsRegistry, registryFeatureIds, repairNote } from './repair.js'
 
 export interface ToolContext {
   apiBase: string
@@ -172,6 +183,7 @@ function replayHandoffs(res: ApiResponse): TextBlock | null {
   const key = body.reproducibility_key as Record<string, unknown> | undefined
   const hash = typeof key?.canonical_query_hash === 'string' ? key.canonical_query_hash : ''
   const links: string[] = []
+  let oldestDays = 0
   if (body.query && typeof body.query === 'object') {
     links.push(
       'definition_handoff: https://app.edgedepth.com/research?rq=' +
@@ -194,22 +206,37 @@ function replayHandoffs(res: ApiResponse): TextBlock | null {
       t: String(seek),
     })
     if (hash) params.set('marker', `rq:${hash.slice(0, 8)}`)
+    // Replay reach is an ACCOUNT entitlement measured back from now, and the
+    // scan window routinely reaches further back than any plan can play. A
+    // handoff older than the caller's reach is refused (TIER_WINDOW) at the
+    // web surface, so the age travels with the link and the agent can say so
+    // instead of handing over a link that fails. The reach ladder itself is
+    // NOT restated here: it is an account fact that changes without this
+    // package, and a stale number would be worse than none.
+    const ageDays = Math.floor((Date.now() - seek) / 86_400_000)
+    const age = Number.isFinite(ageDays) && ageDays >= 0 ? ` [${ageDays}d back]` : ''
     links.push(
       `${String(representative.id ?? 'representative')}: ` +
-        `https://app.edgedepth.com/terminal?${params.toString()}`,
+        `https://app.edgedepth.com/terminal?${params.toString()}${age}`,
     )
+    if (Number.isFinite(ageDays)) oldestDays = Math.max(oldestDays, ageDays)
   }
   if (links.length === 0) return null
   return text(
     'Authenticated web handoffs (save/arm require explicit confirmation; playback stays outside MCP):\n' +
-      links.join('\n'),
+      links.join('\n') +
+      '\nEach [Nd back] is how far back that moment sits from now. Replay reach is a per-account ' +
+      'entitlement counted back from now, so a handoff older than the caller reach is refused at ' +
+      'the web surface (TIER_WINDOW) even though the occurrence is real and the scan is valid. ' +
+      `The oldest handoff here is ${oldestDays}d back. Offer the link, say how far back it is, and ` +
+      'do not promise it will play.',
   )
 }
 
 /** The baseline is useful context, not a precondition for a valid scan. Keep
  *  its bytes in a separately labelled block and make every failure explicitly
  *  non-fatal. Never describe this unconditional population as comparable. */
-function baselineReference(res: ApiResponse): TextBlock {
+function baselineReference(res: ApiResponse, lean = true): TextBlock {
   if (!res.ok || res.notModified || !res.bodyText) {
     let code = `HTTP_${res.status}`
     try {
@@ -224,76 +251,102 @@ function baselineReference(res: ApiResponse): TextBlock {
         `${code}). The historical scan result remains valid; do not invent a reference rate.`,
     )
   }
+  const projected = lean ? leanSummaryBody(res.bodyText) : null
   return text(
     'unconditional_same_scope_reference:\n' +
       'This reference is unconditional over the same symbols and window. It is not matched, ' +
       'comparable, or a causal control.\n' +
-      `${metaLine(res)}\n${res.bodyText}`,
+      (projected ? `projection: ${projected.notes.join(' ')}\n` : '') +
+      `${metaLine(res)}\n${projected ? projected.bodyText : res.bodyText}`,
   )
 }
 
 /**
- * Scan-body compaction (2026-07-30 agent-context economy). A full-universe
- * scan's counts_by_symbol enumerates EVERY instrument including zeros (660+
- * entries), so even page.limit 1 returns ~150 KB, most of it the literal
- * string `"total_matching":0` repeated per symbol. Default projection: entries
- * whose total_matching is 0 are dropped and COUNTED in a trailing note block;
- * counts, outcomes_summary, the reproducibility key, rows and representatives
- * are untouched. The ETag is projection-scoped (same discipline as the
- * universe summary) so a compact ETag can never 304 against the full bytes.
- * full_counts: true restores the engine's verbatim canonical bytes.
+ * Scan-body projection (2026-07-30 counts compaction, widened 2026-09-04 by
+ * the agent surface audit). The projection itself lives in projection.ts with
+ * its discipline written down; this is the wiring. Default projection thins
+ * page rows, the per-occurrence outcomes map, the counts_by_symbol tail and
+ * empty ladder rungs, states every removal in trailing note blocks, and leaves
+ * counts, denominators, representatives, the cursor and the reproducibility
+ * key untouched. The ETag carries the projection's exact parameters, so a
+ * projected ETag can never 304 against different bytes. full_counts: true
+ * restores the engine's verbatim canonical bytes.
  */
-export const COMPACT_TAG = 'nz'
+export { COMPACT_TAG, compactScanBody, leanScanBody, projectionTag } from './projection.js'
 
-export function compactScanBody(
-  bodyText: string,
-): { bodyText: string; omitted: number } | null {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(bodyText)
-  } catch {
-    return null
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-  const body = parsed as Record<string, unknown>
-  const counts = body.counts_by_symbol
-  if (!counts || typeof counts !== 'object' || Array.isArray(counts)) return null
-  const kept: Record<string, unknown> = {}
-  let omitted = 0
-  for (const [sym, value] of Object.entries(counts as Record<string, unknown>)) {
-    const total = (value as Record<string, unknown> | null)?.total_matching
-    if (total === 0) {
-      omitted += 1
-      continue
-    }
-    kept[sym] = value
-  }
-  if (omitted === 0) return null
-  return { bodyText: JSON.stringify({ ...body, counts_by_symbol: kept }), omitted }
-}
-
-/** passthrough, minus the zero-count counts_by_symbol entries. Falls back to
- *  verbatim on parse failure, non-JSON, error bodies, or when nothing would
- *  be omitted, so the projection can only ever REMOVE stated zeros. */
-function compactPassthrough(res: ApiResponse, on304?: string): ToolResult {
-  const scopedHeaders = { ...res.headers, etag: scopeEtag(res.headers.etag, COMPACT_TAG) }
+/** passthrough, minus what the lean projection removes. Falls back to verbatim
+ *  on parse failure, non-JSON, error bodies, or when nothing would be removed,
+ *  so the projection can only ever REMOVE. */
+function leanPassthrough(res: ApiResponse, opts: LeanOptions, on304?: string): ToolResult {
+  const scopedHeaders = { ...res.headers, etag: scopeEtag(res.headers.etag, projectionTag(opts)) }
   if (res.notModified) return passthrough({ ...res, headers: scopedHeaders }, on304)
   if (!res.ok || !res.bodyText) return passthrough(res, on304)
-  const compact = compactScanBody(res.bodyText)
-  if (!compact) return passthrough(res, on304)
-  const result = passthrough(
-    { ...res, bodyText: compact.bodyText, headers: scopedHeaders },
-    on304,
-  )
-  result.content.push(
-    text(
-      `counts_by_symbol: ${compact.omitted} zero-count instrument(s) omitted from this ` +
-        'projection. Absence here means 0 matches, not missing data; totals and ' +
-        'outcomes_summary are computed by the engine and unaffected. Pass full_counts: true ' +
-        "for the engine's verbatim canonical bytes.",
-    ),
-  )
+  const lean = leanScanBody(res.bodyText, opts)
+  if (!lean) return passthrough(res, on304)
+  const result = passthrough({ ...res, bodyText: lean.bodyText, headers: scopedHeaders }, on304)
+  result.content.push(text(`projection (only removals; nothing recomputed):\n- ${lean.notes.join('\n- ')}`))
   return result
+}
+
+/** The row/symbol knobs, read from tool input with the audited defaults. */
+function leanOptions(input: { rows?: number; full_rows?: boolean }): LeanOptions {
+  return {
+    rows: typeof input.rows === 'number' ? Math.max(0, Math.min(50, Math.trunc(input.rows))) : DEFAULT_ROWS,
+    fullRows: input.full_rows === true,
+    symbols: DEFAULT_SYMBOLS,
+  }
+}
+
+/**
+ * Appends a repair note to a contract refusal. The engine's error body is
+ * never touched; this is a separate block naming the next move (nearest real
+ * feature ids, the lowercase-symbol rule, the legal way to ask an outcome
+ * question). A registry outage silently yields the unaugmented refusal, which
+ * is exactly today's behaviour, so this can only ever add.
+ */
+async function withRepair(
+  result: ToolResult,
+  res: ApiResponse,
+  ctx: ToolContext,
+  key: string,
+): Promise<ToolResult> {
+  if (res.ok || res.notModified || res.status !== 422 || !res.bodyText) return result
+  let known: string[] = []
+  // Only a refusal that names an unknown field needs the id list, so a
+  // refusal this note cannot improve costs no extra round trip.
+  if (needsRegistry(res.bodyText)) {
+    try {
+      const reg = await getRegistry(ctx.apiBase, key)
+      if (reg.ok) known = registryFeatureIds(reg.doc)
+    } catch {
+      // A registry failure must never change the refusal the caller sees.
+    }
+  }
+  const note = repairNote(res.bodyText, known)
+  if (note) result.content.push(text(note))
+  return result
+}
+
+/** Shared input schema for the three scan-family tools. */
+const ROWS_INPUT = {
+  rows: z
+    .number()
+    .int()
+    .min(0)
+    .max(50)
+    .optional()
+    .describe(
+      'How many occurrence rows to keep in the returned projection (default 3, max 50). Rows ' +
+        'are examples: every rate comes from outcomes_summary over all occurrences, so raise ' +
+        'this only when you want more example moments. The engine still computes the full page.',
+    ),
+  full_rows: z
+    .boolean()
+    .optional()
+    .describe(
+      'True keeps every recorded setup value on each returned row. Default keeps only the ' +
+        'fields that row\'s own evidence names, which are the fields the predicate matched on.',
+    ),
 }
 
 const CLOSED_READ = {
@@ -323,17 +376,66 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'Use this when you need the valid EdgeDepth query grammar, supported feature ids, ' +
         'operators, windows, limits, or machine-actionable error codes before constructing or ' +
         'repairing a query document. Do not use this to answer a market question; it returns ' +
-        'capabilities, not historical evidence. This is a free deterministic read.',
+        'capabilities, not historical evidence. The whole registry is large: pass search or ' +
+        'feature_ids to read one family, and compact to drop the per-feature prose. This is a ' +
+        'free deterministic read.',
+      inputSchema: {
+        search: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe(
+            'Case-insensitive substring over feature ids and descriptions, e.g. "liquidation", ' +
+              '"funding", "candle". Returns the matching features with the closed grammar ' +
+              '(operators, windows, sequence rules, limits, error codes) intact.',
+          ),
+        feature_ids: z
+          .array(z.string())
+          .max(64)
+          .optional()
+          .describe(
+            'Exact feature ids to return, e.g. ["feature.vpin","feature.funding_rate"]. A bare ' +
+              'name is also matched against feature.<name>. Ids with no match are named back.',
+          ),
+        compact: z
+          .boolean()
+          .optional()
+          .describe(
+            'True drops each feature\'s prose description and the instrument examples, keeping ' +
+              'dtype, range, unit, observation_scope and implemented. Use it once you know what ' +
+              'a feature measures and only need the shape.',
+          ),
+      },
       annotations: CLOSED_READ,
     },
-    async () => {
+    async ({ search, feature_ids, compact }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const reg = await getRegistry(ctx.apiBase, key)
       if (!reg.ok) {
         return { content: [text(metaLine(reg.response)), text(reg.bodyText)], isError: true }
       }
-      return { content: [text(metaLine(reg.response)), text(reg.raw)] }
+      const projected = projectRegistry(reg.raw, {
+        search,
+        featureIds: feature_ids,
+        compact,
+      })
+      if (!projected) return { content: [text(metaLine(reg.response)), text(reg.raw)] }
+      // Projection-scoped ETag: a filtered registry must never revalidate as
+      // the whole grammar. The tag names the exact filter.
+      const tag = `reg.${fnv1a8(JSON.stringify([search ?? '', feature_ids ?? [], compact === true]))}`
+      const scoped = {
+        ...reg.response,
+        headers: { ...reg.response.headers, etag: scopeEtag(reg.response.headers.etag, tag) },
+      }
+      return {
+        content: [
+          text(metaLine(scoped)),
+          text(projected.bodyText),
+          text(`projection (only removals; nothing recomputed):\n- ${projected.notes.join('\n- ')}`),
+        ],
+      }
     },
   )
 
@@ -583,16 +685,20 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           .boolean()
           .optional()
           .describe(
-            "True returns the engine's verbatim canonical bytes, including every zero-count " +
-              'instrument in counts_by_symbol (~150 KB+ for universe scans). Default omits ' +
-              'zero-count entries and states how many were omitted.',
+            "True returns the engine's verbatim canonical bytes with no projection at all: " +
+              'every zero-count instrument, every page row with its whole setup vector, the ' +
+              'per-occurrence outcomes map and every empty ladder rung. Universe scans are ' +
+              'hundreds of KB this way and can exceed a client tool-result limit. Default ' +
+              'returns a projection that only ever REMOVES, and states each removal.',
           ),
+        ...ROWS_INPUT,
       },
       annotations: METERED_COMPUTE,
     },
-    async ({ document, if_none_match, full_counts }) => {
+    async ({ document, if_none_match, full_counts, rows, full_rows }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
+      const lean = leanOptions({ rows, full_rows })
       const res = await apiRequest(ctx.apiBase, {
         method: 'POST',
         path: '/query',
@@ -606,7 +712,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         // scoped ETag never matches upstream.)
         ifNoneMatch: full_counts
           ? if_none_match
-          : (unscopeEtag(if_none_match, COMPACT_TAG) ?? if_none_match),
+          : (unscopeEtag(if_none_match, projectionTag(lean)) ?? if_none_match),
       })
       const baseline =
         res.ok && !res.notModified
@@ -617,14 +723,20 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               body: document,
             })
           : null
-      const result = (full_counts ? passthrough : compactPassthrough)(
-        res,
-        'Re-run the document without If-None-Match to fetch the cached bytes (still free).',
-      )
-      if (baseline) result.content.push(baselineReference(baseline))
+      const result = full_counts
+        ? passthrough(
+            res,
+            'Re-run the document without If-None-Match to fetch the cached bytes (still free).',
+          )
+        : leanPassthrough(
+            res,
+            lean,
+            'Re-run the document without If-None-Match to fetch the cached bytes (still free).',
+          )
+      if (baseline) result.content.push(baselineReference(baseline, !full_counts))
       const handoffs = replayHandoffs(res)
       if (handoffs) result.content.push(handoffs)
-      return result
+      return withRepair(result, res, ctx, key)
     },
   )
 
@@ -652,15 +764,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           .boolean()
           .optional()
           .describe(
-            "True returns the engine's verbatim canonical bytes, including every zero-count " +
-              'instrument in counts_by_symbol. Default omits zero-count entries.',
+            "True returns the engine's verbatim canonical bytes with no projection at all. " +
+              'Default returns a projection that only ever REMOVES, and states each removal.',
           ),
+        ...ROWS_INPUT,
       },
       annotations: CLOSED_READ,
     },
-    async ({ document, cursor, if_none_match, full_counts }) => {
+    async ({ document, cursor, if_none_match, full_counts, rows, full_rows }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
+      const lean = leanOptions({ rows, full_rows })
       const doc: Record<string, unknown> = { ...(document as Record<string, unknown>) }
       const prevPage = (doc.page ?? {}) as Record<string, unknown>
       const limit = typeof prevPage.limit === 'number' ? prevPage.limit : 50
@@ -678,9 +792,9 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         // scoped ETag never matches upstream.)
         ifNoneMatch: full_counts
           ? if_none_match
-          : (unscopeEtag(if_none_match, COMPACT_TAG) ?? if_none_match),
+          : (unscopeEtag(if_none_match, projectionTag(lean)) ?? if_none_match),
       })
-      return (full_counts ? passthrough : compactPassthrough)(res)
+      return withRepair(full_counts ? passthrough(res) : leanPassthrough(res, lean), res, ctx, key)
     },
   )
 
@@ -805,6 +919,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       })
       const result = passthrough(res)
       result.content.unshift(text('base_rate document (echo this to the user):\n' + JSON.stringify(document)))
+      if (res.status === 422 && res.bodyText) {
+        const note = repairNote(res.bodyText, registryFeatureIds(reg.doc))
+        if (note) result.content.push(text(note))
+      }
       return result
     },
   )
@@ -905,15 +1023,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           .boolean()
           .optional()
           .describe(
-            "True returns the engine's verbatim canonical bytes, including any zero-count " +
-              'instrument in counts_by_symbol. Default omits zero-count entries when present.',
+            "True returns the engine's verbatim canonical bytes with no projection at all. " +
+              'Default returns a projection that only ever REMOVES, and states each removal.',
           ),
+        ...ROWS_INPUT,
       },
       annotations: METERED_COMPUTE,
     },
-    async ({ document, if_none_match, full_counts }) => {
+    async ({ document, if_none_match, full_counts, rows, full_rows }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
+      const lean = leanOptions({ rows, full_rows })
       const res = await apiRequest(ctx.apiBase, {
         method: 'POST',
         path: '/cohort',
@@ -927,11 +1047,14 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         // scoped ETag never matches upstream.)
         ifNoneMatch: full_counts
           ? if_none_match
-          : (unscopeEtag(if_none_match, COMPACT_TAG) ?? if_none_match),
+          : (unscopeEtag(if_none_match, projectionTag(lean)) ?? if_none_match),
       })
-      return (full_counts ? passthrough : compactPassthrough)(
+      const on304 = 'Re-run the document without If-None-Match to fetch the cached cohort bytes (still free).'
+      return withRepair(
+        full_counts ? passthrough(res, on304) : leanPassthrough(res, lean, on304),
         res,
-        'Re-run the document without If-None-Match to fetch the cached cohort bytes (still free).',
+        ctx,
+        key,
       )
     },
   )
@@ -986,9 +1109,14 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         body: document,
         ifNoneMatch: if_none_match,
       })
-      return passthrough(
+      return withRepair(
+        passthrough(
+          res,
+          'Re-run the wrapper without If-None-Match to fetch the cached stratified bytes (still free).',
+        ),
         res,
-        'Re-run the wrapper without If-None-Match to fetch the cached stratified bytes (still free).',
+        ctx,
+        key,
       )
     },
   )

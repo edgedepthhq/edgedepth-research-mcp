@@ -70,7 +70,13 @@ describe('tool schema', () => {
     expect(runScan!.description).toContain('matching ISO aliases')
     expect(runScan!.description).toContain('exact lowercase Binance USDT-M perpetual symbol')
     const props = (runScan!.inputSchema.properties ?? {}) as Record<string, unknown>
-    expect(Object.keys(props).sort()).toEqual(['document', 'full_counts', 'if_none_match'])
+    expect(Object.keys(props).sort()).toEqual([
+      'document',
+      'full_counts',
+      'full_rows',
+      'if_none_match',
+      'rows',
+    ])
   })
 
   it('snapshots each tool input shape (guards against grammar drift)', async () => {
@@ -82,13 +88,13 @@ describe('tool schema', () => {
       shape[t.name] = Object.keys(props).sort()
     }
     expect(shape).toEqual({
-      list_features: [],
+      list_features: ['compact', 'feature_ids', 'search'],
       list_instruments: ['full', 'if_none_match', 'symbols'],
       interpret_prose: ['language', 'time_zone'],
-      run_scan: ['document', 'full_counts', 'if_none_match'],
-      run_cohort: ['document', 'full_counts', 'if_none_match'],
+      run_scan: ['document', 'full_counts', 'full_rows', 'if_none_match', 'rows'],
+      run_cohort: ['document', 'full_counts', 'full_rows', 'if_none_match', 'rows'],
       run_stratified: ['document', 'if_none_match'],
-      next_page: ['cursor', 'document', 'full_counts', 'if_none_match'],
+      next_page: ['cursor', 'document', 'full_counts', 'full_rows', 'if_none_match', 'rows'],
       snapshot_at: ['at', 'symbol'],
       base_rate: ['field', 'from', 'operator', 'symbol', 'to', 'value'],
       commonality: ['moments'],

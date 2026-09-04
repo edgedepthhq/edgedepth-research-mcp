@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearRegistryCache } from '../src/index.js'
 import { compactScanBody, scopeEtag, unscopeEtag, COMPACT_TAG } from '../src/tools.js'
+import { DEFAULT_LEAN, projectionTag } from '../src/projection.js'
 import { connectClient, texts } from './helpers.js'
 
 const fetchMock = vi.fn()
@@ -92,13 +93,13 @@ describe('run_scan projection (end to end)', () => {
     expect(body.counts.total_matching).toBe(3)
 
     // The omission is stated, with the honesty framing.
-    const note = blocks.find((b) => b.includes('zero-count instrument(s) omitted'))
+    const note = blocks.find((b) => b.includes('zero-count instrument(s)'))
     expect(note).toBeTruthy()
     expect(note).toContain('2 zero-count')
-    expect(note).toContain('0 matches, not missing data')
+    expect(note).toContain('never missing data')
 
     // Meta line carries the projection-scoped ETag, never the raw one.
-    expect(blocks[0]).toContain(`etag=${scopeEtag('W/"abc"', COMPACT_TAG)}`)
+    expect(blocks[0]).toContain(`etag=${scopeEtag('W/"abc"', projectionTag(DEFAULT_LEAN))}`)
     expect(blocks[0]).not.toContain('etag=W/"abc" ')
   })
 
@@ -130,7 +131,7 @@ describe('run_scan projection (end to end)', () => {
     )
     const client = await connectClient()
 
-    const scoped = scopeEtag('W/"abc"', COMPACT_TAG)!
+    const scoped = scopeEtag('W/"abc"', projectionTag(DEFAULT_LEAN))!
     await client.callTool({
       name: 'run_scan',
       arguments: { document: DOCUMENT, if_none_match: scoped },

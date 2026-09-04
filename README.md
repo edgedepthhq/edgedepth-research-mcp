@@ -81,6 +81,49 @@ Create a key on the [EdgeDepth Developer page](https://app.edgedepth.com/account
 
 Local stdio requires Node.js 20 or newer. Use the `research:read` key scope for recorded-data tools and add `research:interpret` only when you need the free `interpret_prose` proposal step.
 
+## Result projection (agent context economy)
+
+Scan-family results are large: a universe scan's canonical bytes run to
+hundreds of kilobytes, most of it page rows carrying every recorded feature,
+the zero and long-tail entries of `counts_by_symbol`, and empty threshold
+rungs. That overflows a client's tool-result budget before it answers anything.
+
+`run_scan`, `next_page` and `run_cohort` therefore return a **stated
+projection** by default. It only ever REMOVES, and every removal is listed in a
+trailing note with the exact way to get the bytes back:
+
+- occurrence rows are trimmed to `rows` (default 3) and each kept row keeps the
+  setup fields its own `evidence` block names - `full_rows: true` restores the
+  whole vector;
+- the per-occurrence `outcomes` map keeps the entries for the rows that remain;
+- `counts_by_symbol` keeps the top entries by match count, and says how many
+  instruments and matches were omitted;
+- empty threshold rungs are dropped from `outcomes_summary`.
+
+Counts, denominators, absent tallies, `predicate_coverage`, representatives,
+the page cursor and the reproducibility key are never touched, and the request
+document is never rewritten, so the canonical query hash and the credit charged
+are exactly what you asked for. `full_counts: true` returns the engine's
+verbatim canonical bytes with no projection at all. ETags are
+projection-scoped: an ETag held for one projection can never revalidate as a
+different one.
+
+`list_features` takes the same treatment on request: `search`, `feature_ids`
+and `compact` return one feature family instead of the whole grammar, with the
+closed parts (operators, windows, sequence rules, limits, error codes) intact.
+
+## Prompts and resources
+
+The server publishes worked prompts, which compatible clients surface as
+pickable commands: `test_a_claim`, `liquidation_cascade_bounce`,
+`investigate_symbol`, `does_it_confirm` and `how_common_is_it` (the free
+prevalence path). Each one encodes the same answer contract: ground the
+grammar, propose the exact definition, wait for confirmation, then report with
+denominators, the reference, the reproducibility key and a replay handoff.
+
+The grammar registry is also served as a resource, `edgedepth://research/grammar`,
+so a client can attach it once instead of calling `list_features` every session.
+
 ## Recommended agent workflow
 
 1. Call `list_features` first. It is the live, closed grammar and prevents invented fields.
@@ -89,7 +132,7 @@ Local stdio requires Node.js 20 or newer. Use the `research:read` key scope for 
 4. Inspect or show that proposal, then pass the exact document to `run_scan`.
 5. Read rates from `outcomes_summary`, which covers all occurrences. Page rows are examples, never the denominator.
 6. Read the appended unconditional same-scope reference when available. It is not matched, comparable, or a causal control.
-7. Return the full reproducibility key with the answer and one replay handoff. Use `next_page` only with a cursor returned by the API.
+7. Return the full reproducibility key with the answer and one replay handoff. Each handoff states how far back it sits; replay reach is a per-account entitlement, so an old moment can be refused at the web surface even though the occurrence is real. Use `next_page` only with a cursor returned by the API.
 
 Example instruction for an MCP client:
 
@@ -105,10 +148,10 @@ include the full reproducibility key.
 
 | Tool | What it does |
 | --- | --- |
-| `list_features` | Returns the closed grammar registry: feature ids, types, ranges, operators, windows, sequence rules, limits, and error codes. |
+| `list_features` | Returns the closed grammar registry: feature ids, types, ranges, operators, windows, sequence rules, limits, and error codes. `search`, `feature_ids` and `compact` narrow it. |
 | `list_instruments` | Returns the research universe and coverage. The default is a compact summary; use `symbols: [...]` for selected full records or `full: true` for the verbatim canonical universe. |
 | `interpret_prose` | Turns prose into a proposed query document. It does not execute the query. Optional `time_zone` accepts an IANA time zone for calendar planning. |
-| `run_scan` | Executes a `research_query.v2` document and returns canonical result bytes with counts, denominators, outcomes, the unconditional same-scope reference, and the reproducibility key. |
+| `run_scan` | Executes a `research_query.v2` document and returns result bytes with counts, denominators, outcomes, the unconditional same-scope reference, and the reproducibility key. Projected by default (`rows`, `full_rows`, `full_counts`). |
 | `next_page` | Continues a prior scan with its opaque cursor. Never construct cursors manually. |
 | `snapshot_at` | Reads registry feature values, window aggregates, and fired rules as of a recorded moment. |
 | `base_rate` | Counts matches and eligible buckets for one clause over a window. |
