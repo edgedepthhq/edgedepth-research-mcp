@@ -42,6 +42,8 @@ const INSTRUCTIONS =
   'be filtered. Repair machine-actionable contract errors using list_features, whose result also ' +
   'carries the human reading page for a feature id: https://edgedepth.com/research/readings/<id ' +
   'without the "feature." prefix>, e.g. feature.vpin -> https://edgedepth.com/research/readings/vpin. ' +
+  'list_instruments carries the same door for a market still being recorded, ' +
+  'https://edgedepth.com/research/symbols/<symbol>, which 404s for a delisted one. ' +
   'Cache hits, reruns, continuations, and 304 revalidations are free.'
 
 export function createResearchMcpServer(ctx: ToolContext): McpServer {

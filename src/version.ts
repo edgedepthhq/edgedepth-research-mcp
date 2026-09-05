@@ -6,7 +6,7 @@
  * can ship a release whose /healthz reports the wrong version.
  */
 export const SERVER_NAME = 'edgedepth-research'
-export const SERVER_VERSION = '0.6.0'
+export const SERVER_VERSION = '0.6.1'
 
 /**
  * The public REST base of the phase-A/B research API. The on-box HTTP

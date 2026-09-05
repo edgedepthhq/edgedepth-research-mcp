@@ -6,8 +6,10 @@ export { createResearchMcpServer } from './server.js'
 export {
   registerResearchTools,
   readingDocUrl,
+  symbolDocUrl,
   CONFIRM_GATE_CONTRACT,
   READING_DOC_HINT,
+  SYMBOL_DOC_HINT,
   type ToolContext,
 } from './tools.js'
 export { apiRequest, type ApiRequest, type ApiResponse } from './apiClient.js'

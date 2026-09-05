@@ -95,6 +95,36 @@ export const READING_DOC_HINT =
   `${readingDocUrl('feature.vpin')}). Prose for a person; the bytes above remain the contract.`
 
 /**
+ * The same connection for an instrument, with the caveat that makes it
+ * honest. edgedepth-web serves /research/symbols/<lowercase symbol> for a
+ * market it is still recording: a baked nightly page, or an honest pending
+ * page when the bake has not reached it. A market that STOPPED trading gets
+ * notFound(), because the route's isRecordedSymbol asks for a candle inside
+ * the last two days (edgedepth-web src/lib/marketEventsSource.ts).
+ *
+ * This universe deliberately keeps delisted markets (858 instruments, of
+ * which 128 were delisted before the instruments stream began), and nothing
+ * in the universe bytes distinguishes a delisted member from a live one:
+ * coverage is the record's global range on every record, and
+ * availability_status/present_partition_days describe the FEATURE store, not
+ * whether the market still trades. So the caveat is stated rather than
+ * guessed at - a hint that silently 404s on part of the universe would be
+ * worse than none.
+ */
+const SYMBOL_DOC_BASE = 'https://edgedepth.com/research/symbols/'
+
+/** The human market page for a symbol. Deterministic; see the caveat above. */
+export function symbolDocUrl(symbol: string): string {
+  return SYMBOL_DOC_BASE + symbol.toLowerCase()
+}
+
+/** One line, appended to every successful list_instruments read. */
+export const SYMBOL_DOC_HINT =
+  `human market page for a market still being recorded: ${SYMBOL_DOC_BASE}<symbol> (btcusdt -> ` +
+  `${symbolDocUrl('btcusdt')}). A delisted market in this universe has no page and returns 404, ` +
+  'so offer the link, never promise it.'
+
+/**
  * Deterministic client-serialization repair. Some MCP clients erase union
  * types from the input schema and send every argument as a string: 0.8
  * arrives as "0.8" and ["btcusdt","ethusdt"] as one stringified array,
@@ -673,7 +703,15 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         projectionTag === null
           ? res
           : { ...res, headers: { ...res.headers, etag: scopeEtag(res.headers.etag, projectionTag) } }
-      if (full === true || res.notModified || res.status !== 200) return passthrough(scoped)
+      if (full === true || res.notModified || res.status !== 200) {
+        const out = passthrough(scoped)
+        // The canonical-bytes mode still names the instruments, so it gets the
+        // same door. Never on a 304 (no body) or an error.
+        if (full === true && res.status === 200 && !res.notModified) {
+          out.content.push(text(SYMBOL_DOC_HINT))
+        }
+        return out
+      }
 
       interface UniverseInstrument {
         symbol?: string
@@ -721,7 +759,13 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           instruments: matched,
           notes: body.notes,
         }
-        return { content: [text(metaLine(scoped)), text(JSON.stringify(projection))] }
+        return {
+          content: [
+            text(metaLine(scoped)),
+            text(JSON.stringify(projection)),
+            text(SYMBOL_DOC_HINT),
+          ],
+        }
       }
 
       const byStatus: Record<string, number> = {}
@@ -763,7 +807,9 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         instruments_with_excluded_days: withExcludedDays,
         notes: body.notes,
       }
-      return { content: [text(metaLine(scoped)), text(JSON.stringify(summary))] }
+      return {
+        content: [text(metaLine(scoped)), text(JSON.stringify(summary)), text(SYMBOL_DOC_HINT)],
+      }
     },
   )
 

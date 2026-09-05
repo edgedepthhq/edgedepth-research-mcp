@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { clearRegistryCache, readingDocUrl } from '../src/index.js'
+import { clearRegistryCache, readingDocUrl, symbolDocUrl } from '../src/index.js'
 import { connectClient, texts } from './helpers.js'
 
 /**
@@ -148,5 +148,97 @@ describe('human reading pages', () => {
     for (const id of ids) {
       expect(readingDocUrl(id)).toBe(`https://edgedepth.com/research/readings/${id.slice(8)}`)
     }
+  })
+})
+
+/**
+ * The instrument half. Same rule, one honest difference: the market page
+ * exists only while a market is still being recorded, so the hint offers the
+ * link and states the 404 rather than promising a page for all 858.
+ */
+const universeBytes = JSON.stringify({
+  universe_encoding: 'universe_result.v2',
+  dataset_revision: 'rev-universe',
+  coverage: { from: '2025-07-15T00:00:00Z', to: '2026-09-04T00:00:00Z' },
+  instruments: [
+    {
+      symbol: 'btcusdt',
+      availability_status: 'present',
+      underlying_type: 'COIN',
+      tradfi: false,
+      feature_availability: { present_partition_days: 416, excluded_partition_days: 0 },
+    },
+    {
+      symbol: 'nvdausdt',
+      availability_status: 'partial',
+      underlying_type: 'EQUITY',
+      tradfi: true,
+      feature_availability: { present_partition_days: 162, excluded_partition_days: 254 },
+    },
+  ],
+  notes: ['Coverage.to is exclusive.'],
+})
+
+describe('human market pages', () => {
+  beforeEach(() => {
+    fetchMock.mockImplementation(
+      () => new Response(universeBytes, { status: 200, headers: { etag: '"u1"' } }),
+    )
+  })
+
+  it('resolves a symbol to its market page, lowercasing as the route does', () => {
+    expect(symbolDocUrl('btcusdt')).toBe('https://edgedepth.com/research/symbols/btcusdt')
+    expect(symbolDocUrl('NVDAUSDT')).toBe('https://edgedepth.com/research/symbols/nvdausdt')
+  })
+
+  it('states the rule on the summary, the symbols projection and the full bytes', async () => {
+    const client = await connectClient()
+    for (const args of [{}, { symbols: ['btcusdt'] }, { full: true }]) {
+      const res = await client.callTool({ name: 'list_instruments', arguments: args })
+      const hint = texts(res).find((t) => t.includes('research/symbols'))
+      expect(hint, `no hint for ${JSON.stringify(args)}`).toBeDefined()
+      expect(hint).toContain(symbolDocUrl('btcusdt'))
+      // The caveat is the point: a delisted market has no page.
+      expect(hint).toContain('404')
+    }
+  })
+
+  it('leaves the universe projections themselves unchanged', async () => {
+    const client = await connectClient()
+    const summary = await client.callTool({ name: 'list_instruments', arguments: {} })
+    const doc = JSON.parse(texts(summary).find((t) => t.startsWith('{'))!)
+    expect(doc.projection).toBe('summary')
+    expect(doc.instrument_count).toBe(2)
+    expect(doc.tradfi_count).toBe(1)
+    expect(doc.by_availability_status).toEqual({ present: 1, partial: 1 })
+
+    const full = await client.callTool({ name: 'list_instruments', arguments: { full: true } })
+    expect(texts(full)).toContain(universeBytes) // verbatim canonical bytes
+
+    const picked = await client.callTool({
+      name: 'list_instruments',
+      arguments: { symbols: ['btcusdt', 'ftmusdt'] },
+    })
+    const pickedDoc = JSON.parse(texts(picked).find((t) => t.startsWith('{'))!)
+    expect(pickedDoc.instruments.map((i: { symbol: string }) => i.symbol)).toEqual(['btcusdt'])
+    expect(pickedDoc.not_in_universe).toEqual(['ftmusdt'])
+  })
+
+  it('says nothing about a market page on a 304 or an error', async () => {
+    fetchMock.mockImplementation(
+      () => new Response(null, { status: 304, headers: { etag: '"u1"' } }),
+    )
+    const client = await connectClient()
+    const revalidated = await client.callTool({
+      name: 'list_instruments',
+      arguments: { if_none_match: '"u1"', full: true },
+    })
+    expect(texts(revalidated).some((t) => t.includes('research/symbols'))).toBe(false)
+
+    fetchMock.mockImplementation(
+      () => new Response(JSON.stringify({ error: 'nope', code: 'KEY_INVALID' }), { status: 401 }),
+    )
+    const refused = await client.callTool({ name: 'list_instruments', arguments: {} })
+    expect(texts(refused).some((t) => t.includes('research/symbols'))).toBe(false)
   })
 })

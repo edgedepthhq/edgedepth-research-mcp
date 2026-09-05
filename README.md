@@ -135,7 +135,7 @@ so a client can attach it once instead of calling `list_features` every session.
 ## Recommended agent workflow
 
 1. Call `list_features` first. It is the live, closed grammar and prevents invented fields. Its result also carries the human reading page for any feature id: `https://edgedepth.com/research/readings/<id without the "feature." prefix>`, so `feature.vpin` is explained at [edgedepth.com/research/readings/vpin](https://edgedepth.com/research/readings/vpin). Open it when a person needs to know what a reading measures before a threshold is chosen.
-2. Call `list_instruments` to check the manifest-derived universe, coverage, and provenance.
+2. Call `list_instruments` to check the manifest-derived universe, coverage, and provenance. Its result carries the human market page in the same way, `https://edgedepth.com/research/symbols/<symbol>`, for a market still being recorded; a delisted market in the universe has no page, so offer that link rather than promising it.
 3. If starting from natural language, call `interpret_prose`. It returns a proposed document and never executes it.
 4. Inspect or show that proposal, then pass the exact document to `run_scan`.
 5. Read rates from `outcomes_summary`, which covers all occurrences. Page rows are examples, never the denominator. Each rung already carries its matched count and rate, the unconditional rate, and their ratio as `lift`: quote those, and quote the count beside the rate. No `lift` means no reference was available or the unconditional rate was zero; neither licenses estimating one.
