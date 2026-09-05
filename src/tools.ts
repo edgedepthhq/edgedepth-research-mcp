@@ -64,6 +64,37 @@ function text(t: string): TextBlock {
 }
 
 /**
+ * The human half of a reading (2026-09-05). list_features answers what a
+ * feature IS to a validator - dtype, bounds, scope - and nothing in the
+ * result told a caller where the prose page for a person lives.
+ *
+ * The connection is a RULE, not a table: edgedepth-web generates one static
+ * page per registry id at /research/readings/<slug>, and its readingSlug is
+ * `id.replace(/^feature\./, '')` (edgedepth-web
+ * src/lib/researchReadingPages.ts), enumerated from the same closed registry
+ * this tool returns. So the URL is derivable from any id list_features can
+ * emit, including ids added later, with no list to keep in sync here.
+ *
+ * It is emitted as its OWN text block and as one line of the server
+ * instructions - never as a field inside the registry bytes. Those bytes are
+ * the API's canonical grammar document, passed through verbatim, and the
+ * projection contract is removals only; adding a key would break both.
+ */
+const READING_DOC_BASE = 'https://edgedepth.com/research/readings/'
+
+/** The human reading page for a registry feature id. Deterministic. */
+export function readingDocUrl(featureId: string): string {
+  return READING_DOC_BASE + featureId.replace(/^feature\./, '')
+}
+
+/** One line, appended to every successful list_features read. Stays one line
+ *  under compact: it is a template, not 58 URLs. */
+export const READING_DOC_HINT =
+  `human explanation of any feature id above: ${READING_DOC_BASE}` +
+  '<id without the "feature." prefix> - one page per reading (feature.vpin -> ' +
+  `${readingDocUrl('feature.vpin')}). Prose for a person; the bytes above remain the contract.`
+
+/**
  * Deterministic client-serialization repair. Some MCP clients erase union
  * types from the input schema and send every argument as a string: 0.8
  * arrives as "0.8" and ["btcusdt","ethusdt"] as one stringified array,
@@ -551,7 +582,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         featureIds: feature_ids,
         compact,
       })
-      if (!projected) return { content: [text(metaLine(reg.response)), text(reg.raw)] }
+      if (!projected)
+        return {
+          content: [text(metaLine(reg.response)), text(reg.raw), text(READING_DOC_HINT)],
+        }
       // Projection-scoped ETag: a filtered registry must never revalidate as
       // the whole grammar. The tag names the exact filter.
       const tag = `reg.${fnv1a8(JSON.stringify([search ?? '', feature_ids ?? [], compact === true]))}`
@@ -564,6 +598,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           text(metaLine(scoped)),
           text(projected.bodyText),
           text(`projection (only removals; nothing recomputed):\n- ${projected.notes.join('\n- ')}`),
+          text(READING_DOC_HINT),
         ],
       }
     },

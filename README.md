@@ -134,7 +134,7 @@ so a client can attach it once instead of calling `list_features` every session.
 
 ## Recommended agent workflow
 
-1. Call `list_features` first. It is the live, closed grammar and prevents invented fields.
+1. Call `list_features` first. It is the live, closed grammar and prevents invented fields. Its result also carries the human reading page for any feature id: `https://edgedepth.com/research/readings/<id without the "feature." prefix>`, so `feature.vpin` is explained at [edgedepth.com/research/readings/vpin](https://edgedepth.com/research/readings/vpin). Open it when a person needs to know what a reading measures before a threshold is chosen.
 2. Call `list_instruments` to check the manifest-derived universe, coverage, and provenance.
 3. If starting from natural language, call `interpret_prose`. It returns a proposed document and never executes it.
 4. Inspect or show that proposal, then pass the exact document to `run_scan`.
@@ -145,12 +145,17 @@ so a client can attach it once instead of calling `list_features` every session.
 Example instruction for an MCP client:
 
 ```text
-Call list_features first, then list_instruments for btcusdt and ethusdt.
-Propose an exact query for elevated VPIN and one-sided taker flow over the last
-seven complete UTC days. Show me the proposed document before running it.
-Report counts with denominators, summarize outcomes over all occurrences, and
-include the full reproducibility key.
+Call list_features with search "vpin" to find the feature, give me the link to
+its reading page so I can read what it measures, then propose an exact query for
+elevated VPIN and one-sided taker flow over the last seven complete UTC days.
+Show me the proposed document before running it with run_scan. Report counts
+with denominators, summarize outcomes over all occurrences, and include the full
+reproducibility key.
 ```
+
+Find (`list_features` -> `feature.vpin`), read
+(<https://edgedepth.com/research/readings/vpin>), then run (`run_scan` with the
+confirmed document).
 
 ## Tools
 

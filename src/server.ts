@@ -39,8 +39,10 @@ const INSTRUCTIONS =
   'Never invent a baseline or counterexample, call the unconditional baseline comparable, ' +
   'recommend a buy/sell decision, or execute a trade. Read rates from outcomes_summary over all ' +
   'occurrences, never from page rows, and echo the reproducibility key. Outcome fields can never ' +
-  'be filtered. Repair machine-actionable contract errors using list_features. Cache hits, reruns, ' +
-  'continuations, and 304 revalidations are free.'
+  'be filtered. Repair machine-actionable contract errors using list_features, whose result also ' +
+  'carries the human reading page for a feature id: https://edgedepth.com/research/readings/<id ' +
+  'without the "feature." prefix>, e.g. feature.vpin -> https://edgedepth.com/research/readings/vpin. ' +
+  'Cache hits, reruns, continuations, and 304 revalidations are free.'
 
 export function createResearchMcpServer(ctx: ToolContext): McpServer {
   const server = new McpServer(
