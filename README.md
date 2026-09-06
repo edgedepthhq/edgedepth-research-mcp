@@ -134,28 +134,24 @@ so a client can attach it once instead of calling `list_features` every session.
 
 ## Recommended agent workflow
 
-1. Call `list_features` first. It is the live, closed grammar and prevents invented fields. Its result also carries the human reading page for any feature id: `https://edgedepth.com/research/readings/<id without the "feature." prefix>`, so `feature.vpin` is explained at [edgedepth.com/research/readings/vpin](https://edgedepth.com/research/readings/vpin). Open it when a person needs to know what a reading measures before a threshold is chosen.
-2. Call `list_instruments` to check the manifest-derived universe, coverage, and provenance. Its result carries the human market page in the same way, `https://edgedepth.com/research/symbols/<symbol>`, for a market still being recorded; a delisted market in the universe has no page, so offer that link rather than promising it.
-3. If starting from natural language, call `interpret_prose`. It returns a proposed document and never executes it.
-4. Inspect or show that proposal, then pass the exact document to `run_scan`.
-5. Read rates from `outcomes_summary`, which covers all occurrences. Page rows are examples, never the denominator. Each rung already carries its matched count and rate, the unconditional rate, and their ratio as `lift`: quote those, and quote the count beside the rate. No `lift` means no reference was available or the unconditional rate was zero; neither licenses estimating one.
+1. For natural-language questions, call `interpret_prose` first with the user's question unchanged. The interpreter already uses the registry. Do not insert unstated thresholds, dates, markets or outcome definitions. Use `list_features` only when constructing or repairing a document. It is the live, closed grammar and prevents invented fields. Its result also carries the human reading page for any feature id: `https://edgedepth.com/research/readings/<id without the "feature." prefix>`, so `feature.vpin` is explained at [edgedepth.com/research/readings/vpin](https://edgedepth.com/research/readings/vpin). Open it when a person needs to know what a reading measures before a threshold is chosen.
+2. Call `list_instruments` only when you need to check the manifest-derived universe, coverage, and provenance. Its result carries the human market page in the same way, `https://edgedepth.com/research/symbols/<symbol>`, for a market still being recorded; a delisted market in the universe has no page, so offer that link rather than promising it.
+3. Show one short proposal: condition, exact markets and dates/time zone, outcome definition and horizon, and metering. Interpretation is free; fresh computations can consume allowance. Label every unprovided value as a proposed assumption using chip provenance. Resolve unsupported fragments and ask only questions that materially change the study. Keep exact JSON and diagnostics inspectable in tool details, available on request.
+4. Wait for explicit human approval, then pass the same document to `run_scan`. Changes require a new proposal and confirmation. The exact-document API does not store a proposal ID or a human approval receipt; client consent is required, and a model-supplied flag is not proof. Do not link an unapproved proposal through `rq`: that workbench handoff can execute on arrival.
+5. Answer the question first, preserving zero-match and inconclusive findings. Give matched/eligible counts, coverage exclusions, present/absent outcomes, both directions at the agreed horizon, and overlap/selection limitations. Read rates from `outcomes_summary`, which covers all occurrences. Page rows are examples, never the denominator. Each rung already carries its matched count and rate, the unconditional rate, and their ratio as `lift`: quote those, and quote the count beside the rate. No `lift` means no reference was available or the unconditional rate was zero; neither licenses estimating one.
 6. Read the appended unconditional same-scope reference when available. It is not matched, comparable, or a causal control.
-7. Return the full reproducibility key with the answer and one replay handoff. Each handoff states how far back it sits; replay reach is a per-account entitlement, so an old moment can be refused at the web surface even though the occurrence is real. Use `next_page` only with a cursor returned by the API.
+7. Return the full reproducibility key with the answer and one relevant next action: a returned replay, a changed assumption, or an existing report. Saving and alerts remain web actions. Each handoff states how far back it sits; replay reach is a per-account entitlement, so an old moment can be refused at the web surface even though the occurrence is real. Use `next_page` only with a cursor returned by the API.
 
 Example instruction for an MCP client:
 
 ```text
-Call list_features with search "vpin" to find the feature, give me the link to
-its reading page so I can read what it measures, then propose an exact query for
-elevated VPIN and one-sided taker flow over the last seven complete UTC days.
-Show me the proposed document before running it with run_scan. Report counts
-with denominators, summarize outcomes over all occurrences, and include the full
-reproducibility key.
+Did elevated VPIN and one-sided buying tend to precede a rise? Propose a precise
+study before running anything. Label any suggested thresholds, markets, dates
+and outcome definition so I can approve or change them.
 ```
 
-Find (`list_features` -> `feature.vpin`), read
-(<https://edgedepth.com/research/readings/vpin>), then run (`run_scan` with the
-confirmed document).
+The user does not need tool names, feature IDs or JSON. The client translates the
+confirmed proposal into the existing exact-document call.
 
 ## Tools
 

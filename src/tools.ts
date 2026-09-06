@@ -53,9 +53,13 @@ export interface ToolContext {
 type TextBlock = { type: 'text'; text: string }
 type ToolResult = { content: TextBlock[]; isError?: boolean }
 
-/** The confirm gate, translated for agents - VERBATIM from design 3.3. */
+/** Human approval remains a client responsibility on the exact-document API. */
 export const CONFIRM_GATE_CONTRACT =
-  'Echo the exact document and the reproducibility key to the user with the result. ' +
+  'Require explicit human approval of the exact study before calling this tool. Present a short ' +
+  'plain-English confirmation with condition, markets, dates, outcome/horizon, all unprovided ' +
+  'assumptions, and possible allowance consumption. A model-supplied flag is not human approval. ' +
+  'After any change, obtain fresh confirmation. Keep the exact document inspectable in tool ' +
+  'details and provide it on request; include the reproducibility key with the result. ' +
   'Rates come from outcomes_summary over all occurrences; page rows are examples, never ' +
   'the denominator. Outcome fields cannot be filtered; expect OUTCOME_IN_PREDICATE if tried.'
 
@@ -566,7 +570,8 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       description:
         'Use this when you need the valid EdgeDepth query grammar, supported feature ids, ' +
         'operators, windows, limits, or machine-actionable error codes before constructing or ' +
-        'repairing a query document. Do not use this to answer a market question; it returns ' +
+        'repairing a query document. For a natural-language question, start with interpret_prose; ' +
+        'it already uses the registry-backed interpreter. Do not use this to answer a market question; it returns ' +
         'capabilities, not historical evidence. The whole registry is large: pass search or ' +
         'feature_ids to read one family, and compact to drop the per-feature prose. This is a ' +
         'free deterministic read.',
@@ -820,9 +825,15 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       title: 'Interpret prose into a proposed research document',
       description:
         'Use this when the user asks a historical market-microstructure question in prose and no ' +
-        'exact query document exists. It returns a proposed research_query.v2 document, unsupported ' +
-        'fragments, and clarification notices; it never runs the scan. Show the exact proposal, then ' +
-        'call run_scan only after confirmation. Do not use this for live quotes, trading advice, ' +
+        'exact query document exists. Start here without prerequisite registry or universe calls. ' +
+        'Pass the user question unchanged, without filling in unstated thresholds, dates, markets ' +
+        'or outcomes. It returns a proposed research_query.v2 document, chip provenance, unsupported ' +
+        'fragments, and clarification notices; it never runs the scan. Show one short plain-English ' +
+        'proposal with condition, markets, dates, outcome/horizon and metering. Label inferred or ' +
+        'unprovided values as assumptions needing approval. Keep JSON and diagnostics in tool ' +
+        'details, available on request. Resolve unsupported fragments and ask only material questions. ' +
+        'Call run_scan only after explicit human confirmation, submitting the same document. ' +
+        'Do not use this for live quotes, trading advice, ' +
         'trade execution, or when the caller already supplied an exact document. This free proposal ' +
         'step uses the configured external language interpreter.',
       inputSchema: {

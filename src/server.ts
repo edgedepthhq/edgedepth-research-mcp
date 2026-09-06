@@ -12,12 +12,27 @@ import { registerResearchTools, type ToolContext } from './tools.js'
 
 const INSTRUCTIONS =
   'EdgeDepth Research: deterministic search over recorded crypto and TradFi microstructure. ' +
-  'For a prose question, call interpret_prose, show the exact proposed definition, then call ' +
-  'run_scan only after confirmation. If an exact valid document already exists, call run_scan ' +
-  'directly; do not add grounding calls reflexively. Use list_features to construct or repair a ' +
-  'document and list_instruments to verify symbol coverage or provenance. Answer as: one exact ' +
-  'definition, one denominated result, one unconditional same-scope reference rate when available, ' +
-  'one contradictory example when the result actually identifies one, and one replay handoff. ' +
+  'For a prose question, call interpret_prose FIRST with the user question unchanged. ' +
+  'Run only after explicit human approval of a short proposal; exact JSON stays inspectable. Do not ' +
+  'prepend registry or universe discovery or silently add thresholds, dates, markets or outcomes. ' +
+  'Show one short confirmation message: condition, markets, exact dates and time zone, outcome ' +
+  'definition/horizon, and that interpretation is free but a fresh computation can consume allowance. ' +
+  'Label every unprovided value as a proposed assumption, using the interpreter chip provenance; ' +
+  'never call it locked or approved. Ask only questions that materially change the study. ' +
+  'Keep exact JSON and diagnostics in inspectable tool details; do not require the user to read ' +
+  'or write JSON. Resolve unsupported fragments before offering to run. Wait for explicit human ' +
+  'approval of this proposal, then submit that exact document. A tool call or confirmed=true is ' +
+  'not proof of human consent. Changing any assumption requires a new proposal and confirmation. ' +
+  'If an exact valid document already exists AND the user approved it, call run_scan directly; ' +
+  'do not add grounding calls reflexively. Use list_features to construct or repair a ' +
+  'document and list_instruments only when symbol coverage or provenance needs checking. ' +
+  'Answer the question first, then give matched/eligible counts, outcome present/absent counts, ' +
+  'both directions at the agreed horizon, the unconditional same-scope reference when available, ' +
+  'and the limitations. Zero matches, n=1 and inconclusive findings are valid answers. Retain ' +
+  'coverage exclusions, overlap and representative-selection caveats. Offer ONE relevant next ' +
+  'action: inspect a returned replay, change one assumption, or open an existing report. ' +
+  'Saving and alerts are web actions, not MCP capabilities. Never use an rq workbench link for ' +
+  'an unapproved proposal: it is an execution handoff. ' +
   'Scan-family results come back as a stated projection: rows are thinned examples and every ' +
   'removal is listed, so read counts and rates from counts and outcomes_summary, raise rows for ' +
   'more examples, and pass full_counts only when verbatim canonical bytes are required. ' +

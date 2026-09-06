@@ -26,7 +26,10 @@ import type { ToolContext } from './tools.js'
 /** The shared closing instruction: one definition, one denominated result, one
  *  labelled reference, one replay handoff, no invented anything. */
 const REPORT_CONTRACT =
-  'Show me the exact proposed document before running it, and wait for my confirmation. ' +
+  'Show me one short proposal with the condition, markets, dates, outcome/horizon, proposed ' +
+  'assumptions and possible allowance consumption, and wait for my confirmation. Keep the exact ' +
+  'JSON inspectable in tool details and provide it if I ask. Any changed assumption needs my ' +
+  'confirmation again. ' +
   'Then report: the exact definition, the count with its eligible denominator, the outcome ' +
   'rates read from outcomes_summary over all occurrences (never from page rows), the ' +
   'unconditional same-scope reference labelled as not comparable, the full reproducibility ' +
@@ -55,8 +58,8 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
     ({ claim }) =>
       userPrompt(
         `Test this claim against the recorded market with EdgeDepth: "${claim}".\n\n` +
-          'Call list_features first so the definition uses real fields, then interpret_prose to ' +
-          `propose the exact document. ${REPORT_CONTRACT}`,
+          'Start with interpret_prose using my question unchanged. Use list_features only if ' +
+          `construction or repair needs it. ${REPORT_CONTRACT}`,
       ),
   )
 
@@ -71,9 +74,9 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
     () =>
       userPrompt(
         'Do liquidation cascades usually bounce? Define the condition precisely with EdgeDepth ' +
-          'before running anything: use list_features for the liquidation family (search: ' +
-          '"liquidation"), then interpret_prose. Scope it to a handful of majors first so the ' +
-          `first run is small and cheap, and tell me what widening it would cost. ${REPORT_CONTRACT}`,
+          'before running anything: start with interpret_prose using my question unchanged. ' +
+          'A small market set may be suggested, but label it as a proposed assumption and name ' +
+          `the exact markets for my approval. ${REPORT_CONTRACT}`,
       ),
   )
 
