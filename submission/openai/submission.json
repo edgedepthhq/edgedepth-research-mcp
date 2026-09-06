@@ -15,7 +15,10 @@
     "url_type": "Universal",
     "production_url": "https://mcp.edgedepth.com/mcp",
     "authentication": "OAuth",
-    "oauth_scopes": ["research:read", "research:interpret"],
+    "oauth_scopes": [
+      "research:read",
+      "research:interpret"
+    ],
     "challenge_url": "https://mcp.edgedepth.com/.well-known/openai-apps-challenge",
     "has_custom_ui": false,
     "content_security_policy": "No custom UI. No browser resource or connection domains are requested."
@@ -30,32 +33,105 @@
     {
       "id": "P1_PROSE_TO_PROPOSAL",
       "prompt": "Do liquidation cascades usually bounce? Define it precisely before you run anything.",
-      "expected_tools": ["interpret_prose"],
-      "expected_behavior": "Return a proposed exact document and ask for confirmation. Do not run a scan in the same step."
+      "expected_tools": [
+        "interpret_prose"
+      ],
+      "expected_behavior": "Return an exact proposal if sufficiently specified, otherwise ask for the missing bounce definition and scan window. Never invent thresholds or run a scan in the same step.",
+      "tool_arguments": {
+        "language": "Do liquidation cascades usually bounce? Define it precisely before you run anything."
+      }
     },
     {
       "id": "P2_INDIRECT_EVIDENCE_INTENT",
       "prompt": "Can you check whether rising open interest actually confirmed crypto breakouts historically?",
-      "expected_tools": ["interpret_prose"],
-      "expected_behavior": "Recognize historical-evidence intent, propose the exact definition, and preserve unsupported or clarification notices."
+      "expected_tools": [
+        "interpret_prose"
+      ],
+      "expected_behavior": "Recognize historical-evidence intent. Preserve clarification notices for the open-interest threshold, breakout definition, and date window. Propose an exact document only when those details are resolved.",
+      "tool_arguments": {
+        "language": "Can you check whether rising open interest actually confirmed crypto breakouts historically?"
+      }
     },
     {
       "id": "P3_EXACT_DOCUMENT_SCAN",
-      "prompt": "Run this confirmed EdgeDepth research_query.v2 document and report the denominated 1h outcome, reference rate, reproducibility key, and a replay link.",
-      "expected_tools": ["run_scan"],
-      "expected_behavior": "Use the supplied exact document, report rates from complete-result summaries, label the unconditional reference honestly, and include a replay handoff."
+      "prompt": "I confirm this exact definition. Run this EdgeDepth document and report any available denominated 1h outcome, reference rate, reproducibility key, and replay link. If there are no matches or missing outcomes, report that honestly.\n\n{\n  \"schema_version\": \"research_query.v2\",\n  \"normalization_version\": \"archive_normalization.v1\",\n  \"feature_version\": \"feature_defs.v1\",\n  \"target\": \"record_occurrences\",\n  \"where\": {\n    \"all\": [\n      [\n        \"times.anchor_time\",\n        \"between\",\n        [\n          \"2026-09-01T00:00:00Z\",\n          \"2026-09-02T00:00:00Z\"\n        ]\n      ],\n      [\n        \"identity.symbol\",\n        \"eq\",\n        \"btcusdt\"\n      ],\n      [\n        \"feature.ret_15m\",\n        \"gte\",\n        0.01\n      ]\n    ]\n  },\n  \"sort\": [\n    \"times.anchor_time\",\n    \"desc\"\n  ],\n  \"page\": {\n    \"limit\": 50,\n    \"cursor\": null\n  }\n}",
+      "expected_tools": [
+        "run_scan"
+      ],
+      "expected_behavior": "Use the supplied exact document, report rates from complete-result summaries, label the unconditional reference honestly, and include a replay handoff. A zero-match result is valid; never invent an occurrence, outcome, or replay link.",
+      "tool_arguments": {
+        "document": {
+          "schema_version": "research_query.v2",
+          "normalization_version": "archive_normalization.v1",
+          "feature_version": "feature_defs.v1",
+          "target": "record_occurrences",
+          "where": {
+            "all": [
+              [
+                "times.anchor_time",
+                "between",
+                [
+                  "2026-09-01T00:00:00Z",
+                  "2026-09-02T00:00:00Z"
+                ]
+              ],
+              [
+                "identity.symbol",
+                "eq",
+                "btcusdt"
+              ],
+              [
+                "feature.ret_15m",
+                "gte",
+                0.01
+              ]
+            ]
+          },
+          "sort": [
+            "times.anchor_time",
+            "desc"
+          ],
+          "page": {
+            "limit": 50,
+            "cursor": null
+          }
+        }
+      }
     },
     {
       "id": "P4_COMMON_MOMENTS",
-      "prompt": "What setup features were shared by these three exact EdgeDepth moments?",
-      "expected_tools": ["commonality"],
-      "expected_behavior": "Describe deterministic commonality with selection-bias caveats and do not call it predictive evidence."
+      "prompt": "What setup features were shared by these three exact EdgeDepth moments? Preserve missing-data and selection-bias caveats.\n\n[\n  {\n    \"symbol\": \"velvetusdt\",\n    \"at\": \"2026-08-20T18:04:00Z\"\n  },\n  {\n    \"symbol\": \"litusdt\",\n    \"at\": \"2026-08-19T19:20:00Z\"\n  },\n  {\n    \"symbol\": \"btwusdt\",\n    \"at\": \"2026-08-20T20:37:00Z\"\n  }\n]",
+      "expected_tools": [
+        "commonality"
+      ],
+      "expected_behavior": "Describe deterministic commonality with selection-bias caveats and do not call it predictive evidence.",
+      "tool_arguments": {
+        "moments": [
+          {
+            "symbol": "velvetusdt",
+            "at": "2026-08-20T18:04:00Z"
+          },
+          {
+            "symbol": "litusdt",
+            "at": "2026-08-19T19:20:00Z"
+          },
+          {
+            "symbol": "btwusdt",
+            "at": "2026-08-20T20:37:00Z"
+          }
+        ]
+      }
     },
     {
       "id": "P5_PUBLIC_REPORT",
-      "prompt": "Retrieve EdgeDepth report a1b2c3d4 and tell me its integrity status and exact definition.",
-      "expected_tools": ["get_report"],
-      "expected_behavior": "Fetch the report by hash and do not present invalid or withdrawn material as healthy."
+      "prompt": "Retrieve EdgeDepth report fec86629 and tell me its integrity status and exact definition.",
+      "expected_tools": [
+        "get_report"
+      ],
+      "expected_behavior": "Fetch the report by hash and do not present invalid or withdrawn material as healthy.",
+      "tool_arguments": {
+        "hash8": "fec86629"
+      }
     }
   ],
   "negative_test_cases": [
@@ -78,5 +154,5 @@
       "expected_behavior": "Do not invoke any EdgeDepth Research tool; the plugin cannot execute trades or transfers."
     }
   ],
-  "release_notes": "Initial MCP-only submission. Adds explicit per-tool annotations, invocation-focused metadata, free interpretation, a neutral allowance error, automatic unconditional same-scope references on scans, replay handoffs, and production verification endpoints."
+  "release_notes": "Initial MCP-only directory submission using hosted version 0.6.2. Includes concrete scan, commonality, and verified public-report fixtures. Interpretation is free; fresh metered computations disclose allowance use. Historical evidence only, with denominators, unconditional references, and replay handoffs."
 }
