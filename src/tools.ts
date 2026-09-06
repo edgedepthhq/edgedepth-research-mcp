@@ -259,7 +259,7 @@ function replayHandoffs(res: ApiResponse): TextBlock | null {
   let oldestDays = 0
   if (body.query && typeof body.query === 'object') {
     links.push(
-      'definition_handoff: https://app.edgedepth.com/research?rq=' +
+      'definition_handoff: https://app.edgedepth.com/research/workbench?rq=' +
         encodeURIComponent(JSON.stringify(body.query)),
     )
   }

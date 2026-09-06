@@ -4,7 +4,7 @@
 
 Every result includes counts with denominators and a reproducibility key. Same key, same bytes.
 
-[Website](https://edgedepth.com/) · [Search the market](https://edgedepth.com/research) · [REST API documentation](https://app.edgedepth.com/research/api) · [MCP setup guide](https://app.edgedepth.com/research/api/mcp) · [Learning hub](https://edgedepth.com/learn/)
+[Website](https://edgedepth.com/) · [Search the market](https://edgedepth.com/research/workbench) · [REST API documentation](https://app.edgedepth.com/research/api) · [MCP setup guide](https://app.edgedepth.com/research/api/mcp) · [Learning hub](https://edgedepth.com/learn/)
 
 ## Why use EdgeDepth Research?
 
