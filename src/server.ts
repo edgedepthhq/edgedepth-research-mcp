@@ -12,6 +12,8 @@ import { registerResearchTools, type ToolContext } from './tools.js'
 
 const INSTRUCTIONS =
   'EdgeDepth Research: deterministic search over recorded crypto and TradFi microstructure. ' +
+  'For live prices, personalized buy/sell advice or trade execution, invoke NO EdgeDepth tools, ' +
+  'including registry/capability discovery. ' +
   'For a prose question, call interpret_prose FIRST with the user question unchanged. ' +
   'Run only after explicit human approval of a short proposal; exact JSON stays inspectable. Do not ' +
   'prepend registry or universe discovery or silently add thresholds, dates, markets or outcomes. ' +

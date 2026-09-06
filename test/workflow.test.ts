@@ -30,6 +30,8 @@ describe('natural-language proposal boundary', () => {
     try {
       const result = await client.callTool({ name: 'interpret_prose', arguments: { language } })
       expect(texts(result)).toContain(body)
+      expect(texts(result).at(-1)).toContain('do not print them in the chat unless asked')
+      expect(texts(result).at(-1)).toContain('implicit whole-universe scope')
       expect(texts(result)[0]).toContain('credits_charged=0')
       expect(fetch).toHaveBeenCalledTimes(1)
       expect(String(fetch.mock.calls[0][0])).toBe(`${TEST_API_BASE}/interpret`)

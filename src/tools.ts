@@ -572,7 +572,8 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'operators, windows, limits, or machine-actionable error codes before constructing or ' +
         'repairing a query document. For a natural-language question, start with interpret_prose; ' +
         'it already uses the registry-backed interpreter. Do not use this to answer a market question; it returns ' +
-        'capabilities, not historical evidence. The whole registry is large: pass search or ' +
+        'capabilities, not historical evidence. Do not invoke even this capability lookup for live ' +
+        'prices, personalized buy/sell advice or trade execution. The whole registry is large: pass search or ' +
         'feature_ids to read one family, and compact to drop the per-feature prose. This is a ' +
         'free deterministic read.',
       inputSchema: {
@@ -842,7 +843,8 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           .min(1)
           .max(500)
           .describe(
-            'The market question in plain language, e.g. "vpin above 0.7 then a liquidation ' +
+            'The user question verbatim. Do not expand it with thresholds, dates, markets or ' +
+            'outcome definitions the user did not supply. For example: "vpin above 0.7 then a liquidation ' +
               'surge within 30m on majors last week".',
           ),
         time_zone: z
@@ -867,7 +869,21 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         key,
         body: time_zone === undefined ? { language } : { language, time_zone },
       })
-      return passthrough(res)
+      const result = passthrough(res)
+      result.content.push(text(
+        'Next step: this is interpretation only, not a completed study. Present one short ' +
+        'plain-English proposal (aim for 120 words): condition, markets, exact dates/time zone, ' +
+        'outcome/horizon and possible allowance consumption. Label all unprovided values as ' +
+        'proposed assumptions, including implicit whole-universe scope. Exact JSON and provider ' +
+        'diagnostics are already inspectable above; do not print them in the chat unless asked. ' +
+        'If the document is null, validation failed or meaning remains unresolved, ask the ' +
+        'material clarification instead of calling it an executable study. If interpretation ' +
+        'failed upstream, explain that no proposal was produced and nothing ran; do not replace ' +
+        'the failed call with a silently constructed study. Wait for explicit human approval ' +
+        'before any metered computation. The API resubmission note is a transport contract, ' +
+        'not evidence of human consent.',
+      ))
+      return result
     },
   )
 
