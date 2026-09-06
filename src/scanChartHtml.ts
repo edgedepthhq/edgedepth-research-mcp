@@ -180,6 +180,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
         <button id="compare" aria-pressed="true">Compare outcomes</button
         ><button id="distribute" aria-pressed="false">Distribution</button>
       </div>
+      <button id="tails" hidden aria-pressed="false">Show empty tail bands</button>
       <div id="chart" class="chart"></div>
       <p id="chartNote" class="muted"></p>
       <p class="note">
@@ -198,6 +199,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
         "use strict";
         var evidence = null,
           view = "compare",
+          showTails = false,
           pending = new Map(),
           serial = 0;
         var $ = function (id) {
@@ -234,7 +236,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
         function line(parent, n, d, ref, max) {
           var el = document.createElement("div");
           el.className = "barline";
-          if (count(n) && count(d) && n <= d && d > 0) {
+          if (count(n) && count(d) && n > 0 && n <= d && d > 0) {
             var bar = document.createElement("div");
             bar.className = "bar" + (ref ? " ref" : "");
             bar.style.width = (n / d / max) * 55 + "%";
@@ -243,7 +245,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
           var text = document.createElement("span");
           text.textContent =
             count(n) && count(d) && n <= d
-              ? fmt(n) + " / " + fmt(d) + (d ? " = " + pct(n / d) : " (rate unavailable)")
+              ? fmt(n) + " / " + fmt(d) + (d ? " = " + (n > 0 && n / d < 0.001 ? "<0.1%" : pct(n / d)) : " (rate unavailable)")
               : "Unavailable";
           el.appendChild(text);
           parent.appendChild(el);
@@ -296,6 +298,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
             b = evidence.referenceMetrics && evidence.referenceMetrics[name],
             t = Number($("threshold").value);
           $("chart").replaceChildren();
+          $("tails").hidden = true;
           $("chart").className = view === "distribution" ? "chart distribution" : "chart";
           if (!valid(m)) {
             say("finding", "Outcome summary unavailable for this horizon.");
@@ -405,7 +408,21 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
                     })
                   : []),
               );
+              // Collapse only tails known to be empty in BOTH populations.
+              // Keep internal empty bands, original boundaries and all evidence bytes.
+              var first = 0, last = a.length - 1;
+              if (aligned && m.present > 0 && b.present > 0) {
+                while (first < last && a[first].count === 0 && base[first].count === 0) first++;
+                while (last > first && a[last].count === 0 && base[last].count === 0) last--;
+              }
+              var hiddenTails = first + a.length - 1 - last;
+              $("tails").hidden = hiddenTails === 0;
+              $("tails").textContent = showTails
+                ? "Collapse " + hiddenTails + " empty tail bands"
+                : "Show " + hiddenTails + " empty tail bands (0 in both groups)";
+              $("tails").setAttribute("aria-pressed", String(showTails));
               a.forEach(function (x, i) {
+                if (!showTails && (i < first || i > last)) return;
                 var negative = x.hi !== null && x.hi <= 0;
                 var label =
                   (negative ? "(" : "[") +
@@ -424,7 +441,10 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
               });
               say(
                 "chartNote",
-                "Recorded return bands, including empty bins and open tails. Bar length is share of outcomes, not probability density; bin widths can differ. " +
+                (hiddenTails && !showTails
+                  ? "Showing the occupied range; " + hiddenTails + " empty tail bands can be expanded above. "
+                  : "All recorded return bands, including empty bins and open tails. ") +
+                "Bar length is share of outcomes, not probability density; bin widths can differ. " +
                   (aligned
                     ? "Same bin edges for both groups."
                     : "Reference distribution unavailable or bin edges differ."),
@@ -499,6 +519,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
           $("app").hidden = false;
           render();
         }
+        $("tails").onclick = function () { showTails = !showTails; render(); };
         $("horizon").onchange = render;
         $("threshold").onchange = render;
         ["compare", "distribute"].forEach(function (id) {
