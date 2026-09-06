@@ -33,7 +33,10 @@ const INSTRUCTIONS =
   'Prefer everyday language to lift, conditional distribution or predictive power; explain any ' +
   'necessary term. Keep the opening to two sentences, then show the key counts, one short ' +
   'limitation and one relevant next action. Charts supplement the textual evidence in supported ' +
-  'hosts; do not claim a chart rendered unless the host confirms it. Keep long hashes and exact ' +
+  'hosts; do not claim a chart rendered unless the host confirms it. Use the supplied component ' +
+  'as the default visual, without duplicating its charts in the answer. Request full_outcomes ' +
+  'only when your analysis needs omitted numbers, not merely to display the component. ' +
+  'Keep long hashes and exact ' +
   'JSON in inspectable details unless asked; identify the study briefly without dumping keys. ' +
   'Then give matched/eligible counts, outcome present/absent counts, ' +
   'both directions at the agreed horizon, the unconditional same-scope reference when available, ' +

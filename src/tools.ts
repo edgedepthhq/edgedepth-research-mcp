@@ -914,7 +914,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'count or rate; outcome.* in a predicate is still OUTCOME_IN_PREDICATE. ' +
         'identity.symbol must be an exact lowercase Binance USDT-M perpetual symbol. A fresh ' +
         'initial scan can consume research allowance units; cache hits, continuations, reruns, and ' +
-        '304 revalidations are free.',
+        '304 revalidations are free. Successful results include an optional inline comparison and ' +
+        'recorded-bin distribution, populated independently of full_outcomes. The default compact ' +
+        'text is sufficient to accompany this component; no extra scan or chart generation is ' +
+        'needed solely to display it.',
       inputSchema: {
         document: z
           .record(z.any())
