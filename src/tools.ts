@@ -33,6 +33,7 @@ import {
   type LeanOptions,
   type OutcomeFirstLeanOptions,
 } from './projection.js'
+import { scanChartMeta, SCAN_CHART_URI } from './scanChart.js'
 import { getRegistry } from './registry.js'
 import {
   OUTCOME_HORIZONS,
@@ -51,7 +52,7 @@ export interface ToolContext {
 }
 
 type TextBlock = { type: 'text'; text: string }
-type ToolResult = { content: TextBlock[]; isError?: boolean }
+type ToolResult = { content: TextBlock[]; isError?: boolean; _meta?: Record<string, unknown> }
 
 /** Human approval remains a client responsibility on the exact-document API. */
 export const CONFIRM_GATE_CONTRACT =
@@ -894,6 +895,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     'run_scan',
     {
       title: 'Run a research scan (record_occurrences)',
+      _meta: { ui: { resourceUri: SCAN_CHART_URI }, 'openai/outputTemplate': SCAN_CHART_URI },
       description:
         'Use this when an exact research_query.v2 document has been confirmed and the user wants ' +
         'historical occurrences and what followed. It returns the exact definition, counts with ' +
@@ -986,6 +988,8 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       if (baseline) result.content.push(baselineReference(baseline, !full_counts, folded))
       const handoffs = replayHandoffs(res)
       if (handoffs) result.content.push(handoffs)
+      const chart = scanChartMeta(res, baseline)
+      if (chart) result._meta = chart
       return withRepair(result, res, ctx, key)
     },
   )

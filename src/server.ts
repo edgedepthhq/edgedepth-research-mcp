@@ -7,6 +7,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 import { registerResearchPrompts } from './prompts.js'
+import { registerScanChart } from './scanChart.js'
 import { SERVER_NAME, SERVER_VERSION } from './version.js'
 import { registerResearchTools, type ToolContext } from './tools.js'
 
@@ -28,7 +29,13 @@ const INSTRUCTIONS =
   'If an exact valid document already exists AND the user approved it, call run_scan directly; ' +
   'do not add grounding calls reflexively. Use list_features to construct or repair a ' +
   'document and list_instruments only when symbol coverage or provenance needs checking. ' +
-  'Answer the question first, then give matched/eligible counts, outcome present/absent counts, ' +
+  'Lead with one plain-language finding about what the evidence does and does not support. ' +
+  'Prefer everyday language to lift, conditional distribution or predictive power; explain any ' +
+  'necessary term. Keep the opening to two sentences, then show the key counts, one short ' +
+  'limitation and one relevant next action. Charts supplement the textual evidence in supported ' +
+  'hosts; do not claim a chart rendered unless the host confirms it. Keep long hashes and exact ' +
+  'JSON in inspectable details unless asked; identify the study briefly without dumping keys. ' +
+  'Then give matched/eligible counts, outcome present/absent counts, ' +
   'both directions at the agreed horizon, the unconditional same-scope reference when available, ' +
   'and the limitations. Zero matches, n=1 and inconclusive findings are valid answers. Retain ' +
   'coverage exclusions, overlap and representative-selection caveats. Offer ONE relevant next ' +
@@ -55,7 +62,7 @@ const INSTRUCTIONS =
   'counts and four adjustments and spends nothing; one market always refuses. ' +
   'Never invent a baseline or counterexample, call the unconditional baseline comparable, ' +
   'recommend a buy/sell decision, or execute a trade. Read rates from outcomes_summary over all ' +
-  'occurrences, never from page rows, and echo the reproducibility key. Outcome fields can never ' +
+  'occurrences, never from page rows, and retain the reproducibility key in details. Outcome fields can never ' +
   'be filtered. Repair machine-actionable contract errors using list_features, whose result also ' +
   'carries the human reading page for a feature id: https://edgedepth.com/research/readings/<id ' +
   'without the "feature." prefix>, e.g. feature.vpin -> https://edgedepth.com/research/readings/vpin. ' +
@@ -70,5 +77,6 @@ export function createResearchMcpServer(ctx: ToolContext): McpServer {
   )
   registerResearchTools(server, ctx)
   registerResearchPrompts(server, ctx)
+  registerScanChart(server)
   return server
 }

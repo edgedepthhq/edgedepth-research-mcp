@@ -242,3 +242,20 @@ TypeScript builds to `dist/`. Example nginx locations, systemd hardening, and op
 ## License
 
 MIT
+
+
+### Inline scan evidence
+
+Supported MCP Apps hosts can display a comparison and recorded-distribution card
+from `run_scan`. The card receives only complete-result forward-return summaries,
+coverage, exact query/key and metering in tool-result `_meta`. This data is hidden
+from the model in ChatGPT; the existing text projection is unchanged. No raw page
+observations are used to make distributions, no fitted curves are invented, and
+no additional requests or allowance consumption occur when changing chart views.
+Reference distributions are compared only when their bin edges align. Empty bins,
+open tails, missing outcomes and zero/one-observation states remain visible.
+Horizon and move-size controls are display choices over already-computed outcomes,
+not changes to the approved query. The card defaults to the labelled 1h / 1% view.
+Exact study/evidence details expand inside the card; text-only hosts keep the
+existing response. The HTML resource has no network dependencies or mutations.
+This is a developer-connector update, not an automatic official V1 rescan.
