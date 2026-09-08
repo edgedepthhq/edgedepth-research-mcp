@@ -8,6 +8,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 import { registerResearchPrompts } from './prompts.js'
 import { registerScanChart } from './scanChart.js'
+import { SCREENSHOT_INSTRUCTIONS } from './screenshots.js'
 import { SERVER_NAME, SERVER_VERSION } from './version.js'
 import { registerResearchTools, type ToolContext } from './tools.js'
 
@@ -15,7 +16,7 @@ const INSTRUCTIONS =
   'EdgeDepth Research: deterministic search over recorded crypto and TradFi microstructure. ' +
   'For live prices, personalized buy/sell advice or trade execution, invoke NO EdgeDepth tools, ' +
   'including registry/capability discovery. ' +
-  'For a prose question, call interpret_prose FIRST with the user question unchanged. ' +
+  'For a setup-first prose question, call interpret_prose FIRST with the user question unchanged. ' +
   'Run only after explicit human approval of a short proposal; exact JSON stays inspectable. Do not ' +
   'prepend registry or universe discovery or silently add thresholds, dates, markets or outcomes. ' +
   'Show one short confirmation message: condition, markets, exact dates and time zone, outcome ' +
@@ -43,8 +44,8 @@ const INSTRUCTIONS =
   'and the limitations. Zero matches, n=1 and inconclusive findings are valid answers. Retain ' +
   'coverage exclusions, overlap and representative-selection caveats. Offer ONE relevant next ' +
   'action: inspect a returned replay, change one assumption, or open an existing report. ' +
-  'Saving and alerts are web actions, not MCP capabilities. Never use an rq workbench link for ' +
-  'an unapproved proposal: it is an execution handoff. ' +
+  'Saving and alerts are web actions, not MCP capabilities. On the supporting web release, ' +
+  'returned workbench links load editable proposals; navigation never authorizes a scan. ' +
   'Scan-family results come back as a stated projection: rows are thinned examples and every ' +
   'removal is listed, so read counts and rates from counts and outcomes_summary, raise rows for ' +
   'more examples, and pass full_counts only when verbatim canonical bytes are required. ' +
@@ -54,12 +55,19 @@ const INSTRUCTIONS =
   'rung marked kept_for was included because it carries the largest lift in that grid; absent ' +
   'lift means no reference was available or the unconditional rate was zero, and neither is a ' +
   'reason to estimate one. Pass full_outcomes for every rung and the per-rung histogram. ' +
+  SCREENSHOT_INSTRUCTIONS +
+  'For an outcome-first question, use outcome_first directly after agreeing the target and scope; ' +
+  'do not turn the move into a setup through interpret_prose. Preserve reached versus finished, ' +
+  'direction, magnitude and horizon. Never silently substitute the worked example or a nearby rung. ' +
   'outcome_first starts from the MOVE instead of the setup and is a DESCRIPTIVE READ, never a ' +
   'candidate list: it searches no rule space and claims no survivor. Every row it returns is ' +
   'selected on the outcome and carries two counted shares, and the row order is the gap between ' +
   'them, which is display order and not a ranking. Never present a row as a rule, a finding or ' +
   'something that works, and run the setup-first rerun through run_scan before quoting any rate ' +
-  'from it; that rerun asks the opposite question and its rate is the honest one. Its magnitude ' +
+  'from it; that rerun asks how often the move followed the condition. It remains exploratory on ' +
+  'the same dates. Freeze the condition and check a separate period before claiming validation. ' +
+  'Read the original target in the rerun, using full_outcomes if the projection omits it; an absent ' +
+  'rung is unavailable, never a substitute one-hour result. Its magnitude ' +
   'is a ladder rung as a FRACTION and its horizon a closed suffix, both in the ' +
   'edgedepth://research/outcome-first resource. A scope under the floor is refused with its ' +
   'counts and four adjustments and spends nothing; one market always refuses. ' +

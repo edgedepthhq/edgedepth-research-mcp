@@ -1,6 +1,6 @@
 /**
  * tools - the one tool core (design doc RESEARCH_API_MCP_DESIGN
- * 2026-07-18 section 3.3, FROZEN). Twelve research tools, each a thin
+ * 2026-07-18 section 3.3, FROZEN). Research tools, each a thin
  * wrapper over the phase-A/B REST surface. No definitions, no alerts,
  * no publish - research-only v1.
  *
@@ -35,6 +35,7 @@ import {
 } from './projection.js'
 import { scanChartMeta, SCAN_CHART_URI } from './scanChart.js'
 import { getRegistry } from './registry.js'
+import { registerScreenshotTools } from './screenshots.js'
 import {
   OUTCOME_HORIZONS,
   OUTCOME_LADDER,
@@ -561,8 +562,9 @@ const METERED_COMPUTE = {
   openWorldHint: false,
 } as const
 
-/** Registers the twelve research tools on an McpServer. */
+/** Registers the research tools on an McpServer. */
 export function registerResearchTools(server: McpServer, ctx: ToolContext): void {
+  registerScreenshotTools(server, ctx, passthrough)
   // 1. list_features - the grounding tool.
   server.registerTool(
     'list_features',
@@ -1398,14 +1400,17 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'Every row is labelled selected on the outcome. A row is NOT a rule, a candidate, a ' +
         'finding or a predictor, and the row order is the gap between those two shares, which is ' +
         'display order and not a ranking: never present a row as something that works. The ' +
-        'honest rate is the setup-first rerun each row carries, which run_scan re-tests the ' +
-        'other way round; quote a row only after running it. Do not use this to filter outcomes, ' +
+        'setup-first rerun each row carries lets run_scan count how often the original move ' +
+        'followed the condition across all eligible minutes. You may describe both row shares ' +
+        'immediately; do not claim a forward rate until that rerun returns. The same-period rerun ' +
+        'remains exploratory, not independent validation. Keep its original target, using ' +
+        'full_outcomes if the projection omits that rung. Do not use this to filter outcomes, ' +
         'to mine for a strategy, or to recommend a trade. A scope with too few realised moves is ' +
         'REFUSED with the counts and four honest adjustments rather than answered underpowered, ' +
         'and a refusal spends no allowance. ' +
         CONFIRM_GATE_CONTRACT +
-        ' A one-market scope always refuses (the floor is five markets), so scope to a sector or ' +
-        'a volume tier. A fresh read can consume research allowance units; cache hits, reruns and ' +
+        ' A one-market scope always refuses (the floor is five markets). Propose a broader exact ' +
+        'scope for approval; never invent sector membership or widen it silently. A fresh read can consume research allowance units; cache hits, reruns and ' +
         '304 revalidations are free.',
       inputSchema: {
         kind: z
@@ -1544,7 +1549,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
             'Re-run the same inputs without If-None-Match to fetch the cached bytes (still free).',
           )
       result.content.unshift(
-        text('outcome_first document (echo this to the user):\n' + JSON.stringify(document)),
+        text('outcome_first document (inspectable details; show only if asked):\n' + JSON.stringify(document)),
       )
       const handoffs = outcomeFirstHandoffs(res)
       if (handoffs) result.content.push(handoffs)

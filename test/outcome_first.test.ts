@@ -310,7 +310,7 @@ describe('the outcome_first tool', () => {
       symbols: ['aiusdt', 'fetusdt', 'grtusdt', 'renderusdt', 'taousdt'],
     })
     const blocks = texts(result)
-    expect(blocks[0]).toContain('outcome_first document (echo this to the user)')
+    expect(blocks[0]).toContain('outcome_first document (inspectable details; show only if asked)')
     expect(blocks.join('\n')).toContain('projection (only removals; nothing recomputed)')
     // The ETag the caller gets back names THIS projection.
     expect(blocks.join('\n')).toContain('+nz.of.r12')

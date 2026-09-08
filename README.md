@@ -124,7 +124,7 @@ closed parts (operators, windows, sequence rules, limits, error codes) intact.
 
 The server publishes worked prompts, which compatible clients surface as
 pickable commands: `test_a_claim`, `liquidation_cascade_bounce`,
-`investigate_symbol`, `does_it_confirm` and `how_common_is_it` (the free
+`investigate_symbol`, `what_preceded_moves_like_this`, `does_it_confirm` and `how_common_is_it` (the free
 prevalence path). Each one encodes the same answer contract: ground the
 grammar, propose the exact definition, wait for confirmation, then report with
 denominators, the reference, the reproducibility key and a replay handoff.
@@ -134,10 +134,10 @@ so a client can attach it once instead of calling `list_features` every session.
 
 ## Recommended agent workflow
 
-1. For natural-language questions, call `interpret_prose` first with the user's question unchanged. The interpreter already uses the registry. Do not insert unstated thresholds, dates, markets or outcome definitions. Use `list_features` only when constructing or repairing a document. It is the live, closed grammar and prevents invented fields. Its result also carries the human reading page for any feature id: `https://edgedepth.com/research/readings/<id without the "feature." prefix>`, so `feature.vpin` is explained at [edgedepth.com/research/readings/vpin](https://edgedepth.com/research/readings/vpin). Open it when a person needs to know what a reading measures before a threshold is chosen.
+1. For setup-first natural-language questions, call `interpret_prose` first with the user's question unchanged. The interpreter already uses the registry. Do not insert unstated thresholds, dates, markets or outcome definitions. Use `list_features` only when constructing or repairing a document. It is the live, closed grammar and prevents invented fields. Its result also carries the human reading page for any feature id: `https://edgedepth.com/research/readings/<id without the "feature." prefix>`, so `feature.vpin` is explained at [edgedepth.com/research/readings/vpin](https://edgedepth.com/research/readings/vpin). Open it when a person needs to know what a reading measures before a threshold is chosen.
 2. Call `list_instruments` only when you need to check the manifest-derived universe, coverage, and provenance. Its result carries the human market page in the same way, `https://edgedepth.com/research/symbols/<symbol>`, for a market still being recorded; a delisted market in the universe has no page, so offer that link rather than promising it.
 3. Show one short proposal: condition, exact markets and dates/time zone, outcome definition and horizon, and metering. Interpretation is free; fresh computations can consume allowance. Label every unprovided value as a proposed assumption using chip provenance. Resolve unsupported fragments and ask only questions that materially change the study. Keep exact JSON and diagnostics inspectable in tool details, available on request.
-4. Wait for explicit human approval, then pass the same document to `run_scan`. Changes require a new proposal and confirmation. The exact-document API does not store a proposal ID or a human approval receipt; client consent is required, and a model-supplied flag is not proof. Do not link an unapproved proposal through `rq`: that workbench handoff can execute on arrival.
+4. Wait for explicit human approval, then pass the same document to `run_scan`. Changes require a new proposal and confirmation. The exact-document API does not store a proposal ID or a human approval receipt; client consent is required, and a model-supplied flag is not proof. On the supporting web release (b68c744 or later), returned `rq` workbench links load editable proposals and wait for Run; navigation never authorizes computation.
 5. Answer the question first, preserving zero-match and inconclusive findings. Give matched/eligible counts, coverage exclusions, present/absent outcomes, both directions at the agreed horizon, and overlap/selection limitations. Read rates from `outcomes_summary`, which covers all occurrences. Page rows are examples, never the denominator. Each rung already carries its matched count and rate, the unconditional rate, and their ratio as `lift`: quote those, and quote the count beside the rate. No `lift` means no reference was available or the unconditional rate was zero; neither licenses estimating one.
 6. Read the appended unconditional same-scope reference when available. It is not matched, comparable, or a causal control.
 7. Return the full reproducibility key with the answer and one relevant next action: a returned replay, a changed assumption, or an existing report. Saving and alerts remain web actions. Each handoff states how far back it sits; replay reach is a per-account entitlement, so an old moment can be refused at the web surface even though the occurrence is real. Use `next_page` only with a cursor returned by the API.
@@ -153,6 +153,32 @@ and outcome definition so I can approve or change them.
 The user does not need tool names, feature IDs or JSON. The client translates the
 confirmed proposal into the existing exact-document call.
 
+## Outcome-first and pointed-move workflow
+
+For an outcome-first question, use `outcome_first` after agreeing the target and
+scope. Preserve touched-within (`reached`) versus close-at-end (`finished`),
+direction, size and horizon. Do not pass the outcome to the setup interpreter or
+substitute the worked example. The target grammar is available at
+`edgedepth://research/outcome-first`.
+
+Report the population and both counted shares for each displayed reading. Help
+the person choose one reading, retrieve its `setup_first_rerun` with `full_rows:
+true` on the unchanged request, and confirm that exact setup before `run_scan`.
+Read the original outcome target from the complete matched-set summary; request
+`full_outcomes` if the projection omitted its rung. An unavailable rung is stated,
+never replaced by the default horizon. The two reads have different denominators.
+A same-period rerun remains exploratory; freeze the condition and use a separate
+period before claiming validation.
+
+A named moment can be inspected with `snapshot_at`; `commonality` compares multiple
+supplied moments. The screenshot path below adds bounded explicit close-range investigation and the existing
+detector geometry. Automatic move selection is not exposed through MCP. Historical marker browsing, named
+sector/volume-tier resolution, and an exact pre-run allowance quote are not MCP
+capabilities yet. `list_instruments` supplies coverage and instrument provenance,
+not sector membership. Use an exact supplied roster or propose a resolvable scope;
+never invent group members or a numeric price. Replay handoffs open the web surface
+and remain subject to the person's coverage and entitlement.
+
 ## Tools
 
 | Tool | What it does |
@@ -162,6 +188,8 @@ confirmed proposal into the existing exact-document call.
 | `interpret_prose` | Turns prose into a proposed query document. It does not execute the query. Optional `time_zone` accepts an IANA time zone for calendar planning. |
 | `run_scan` | Executes a `research_query.v2` document and returns result bytes with counts, denominators, outcomes, the unconditional same-scope reference, and the reproducibility key. Projected by default (`rows`, `full_rows`, `full_counts`). |
 | `next_page` | Continues a prior scan with its opaque cursor. Never construct cursors manually. |
+| `ground_screenshots` | Resolves host-extracted screenshot coordinates against recorded candle closes and coverage, retaining uncertainty and deduplicating event views. Free. |
+| `investigate_move` | Reads the existing lead-up and optional recorded detector geometry for a grounded event, and optionally prepares exact unrun setup documents. Free read; historical entitlement applies. |
 | `snapshot_at` | Reads registry feature values, window aggregates, and fired rules as of a recorded moment. |
 | `base_rate` | Counts matches and eligible buckets for one clause over a window. |
 | `commonality` | Finds the deterministic intersection across multiple moments with selection-bias caveats included. |
@@ -259,3 +287,55 @@ not changes to the approved query. The card defaults to the labelled 1h / 1% vie
 Exact study/evidence details expand inside the card; text-only hosts keep the
 existing response. The HTML resource has no network dependencies or mutations.
 This is a developer-connector update, not an automatic official V1 rescan.
+
+
+## Screenshot-led investigation (local implementation; release required)
+
+Attach charts to a vision-capable host and use `investigate_screenshots`. The host
+reads the images; the server receives `screenshot_observation.v1` facts through
+`ground_screenshots`. The contract is `edgedepth://research/screenshots`. No second
+image model or automatic attachment access is used.
+
+Grounding is free for every authenticated tier. It checks explicit minute-close
+boundaries against recorded Binance futures candles and manifest bounds, retains
+visible/inferred/user/missing provenance, and deduplicates exact event views.
+Unclear dates, zones, inferred boundaries, conflicting coordinates and overlapping
+examples need one clarification. No default date, venue substitution or nearby
+move search occurs. Wick tick timing and unsupported drawings are not matched.
+
+`investigate_move` rechecks the event and reuses the web's five lead-up offsets,
+recorded detector evidence and setup-combination builder. It consumes no allowance;
+historical snapshots retain their existing entitlement. Optional exact study scope
+and target return unrun `setup_first_rerun` documents, an allowance estimate and an
+editable workbench link. The default response omits duplicate source snapshots and detector candle bars,
+with `full_sources: true` restoring the complete bytes. All reading values, exact
+setup documents, source metadata, gaps and parity stay inspectable; a free re-read
+may see a newer revision. Population counts and forward rates still require the existing
+`outcome_first` or `run_scan`, after a concrete proposal and explicit human approval.
+The exact target stays separate from the setup predicate. Selected winning examples
+and same-period reruns remain exploratory; use a separate period before validation.
+Replay coverage and entitlement remain independent of research history.
+
+Deploy the web's `/api/v1/research/investigate/ground`, `/investigate` and `/evidence`
+routes before releasing these MCP tools. The workbench on web b68c744 loads `rq`
+as an editable proposal and waits for Run. Do not use the new proposal links with older releases that execute on arrival.
+Historical-marker and named-collection MCP parity remain separate work. The returned
+estimate is for each prepared setup, not a general quote endpoint.
+
+Local deterministic tests exercise extracted observations and authenticated handlers
+with fixtures. They are not image-model or vision-host acceptance. Follow the
+`test/screenshot-host-acceptance.md` cases in an actual vision-capable host before
+claiming that upload-to-investigation works end to end.
+
+### Release 0.8.0
+
+Adds explicit screenshot grounding and move investigation, with compact source
+projection by default and `full_sources: true` when the complete evidence is needed.
+The host reads the images; the MCP validates structured observations and exact
+recorded coordinates. Ambiguity requests clarification rather than inventing a move.
+
+Saved scans, cohorts, comparisons and outcome-first studies remain readable when
+allowance is exhausted. The web uses dedicated engine cache-read routes; a missing
+result cannot start a new computation. A cache is revision-bound and may be evicted,
+so this is not a promise of permanent result storage. General replay access depends
+on the recorded date, market and plan; research links do not confer an event grant.

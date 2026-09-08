@@ -99,7 +99,9 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
           'values there.\n' +
           '3. Propose ONE condition from that snapshot that could be interesting, and use ' +
           'base_rate to tell me how common it is. base_rate spends no allowance.\n' +
-          '4. Only then propose a full scan, and tell me what it would cost before running it.',
+          '4. Only then propose a full scan with its exact condition, markets, dates and outcome. ' +
+          'Say that a fresh computation can consume allowance; MCP has no pre-run quote tool, so ' +
+          'do not invent a numeric price. Wait for my confirmation before running it.',
       ),
   )
 
@@ -159,8 +161,8 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
       title: 'What preceded moves like this? (outcome first)',
       description:
         'Start from the move rather than from a setup: define the outcome exactly, read what ' +
-        'the record was doing before every move like it, then re-test one reading setup first, ' +
-        'which is where the honest rate lives.',
+        'the record was doing before every move like it, then count how often the same move ' +
+        'followed one exact condition across all eligible minutes.',
       argsSchema: {
         move: z
           .string()
@@ -172,30 +174,42 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
         scope: z
           .string()
           .optional()
-          .describe('Optional markets, e.g. "AI sector perps" or a comma-separated list.'),
+          .describe('Optional exact markets or a named group whose actual membership must be resolved.'),
       },
     },
     ({ move, scope }) =>
       userPrompt(
-        `What preceded ${move ?? '10 percent up moves within 4 hours'} on ` +
-          `${scope ?? 'AI-sector perps'}, over the last 90 complete UTC days? Use EdgeDepth:\n` +
-          '1. list_instruments to pick the markets, because a scope of fewer than five markets ' +
-          'is always refused and one market always is.\n' +
-          '2. outcome_first with kind: "reached", direction: "up", magnitude: 0.1 (a ladder rung, ' +
-          'as a fraction) and horizon: "4h". Show me the exact document before you run it.\n' +
+        `What preceded ${move?.trim() || '10 percent up moves within 4 hours'} on ` +
+          `${scope?.trim() || 'the recorded universe'}, over the last 90 complete UTC days? Use EdgeDepth:\n` +
+          '1. Preserve the requested move: reached means touched within the horizon; finished ' +
+          'means the close at its end. Map that move to the outcome-first grammar, with magnitude ' +
+          'as a fraction. If meaning or a ladder rung is unsupported, ask instead of substituting. ' +
+          'Use list_instruments only to resolve coverage or exact markets. It does not provide ' +
+          'named sector or volume-tier membership; do not guess a group roster. A scope under ' +
+          'five markets always refuses, so propose a broader scope for approval.\n' +
+          '2. Propose the exact target, markets and UTC dates in plain language. Treat any ' +
+          'unstated values, including the worked example and 90-day window, as assumptions. ' +
+          'A fresh outcome_first read can consume allowance; MCP has no pre-run quote tool. ' +
+          'Keep JSON inspectable in tool details and wait for my confirmation, then call ' +
+          'outcome_first with exactly that target and scope.\n' +
           '3. Report the population first: how many realised moves, on how many markets, over ' +
-          'how many days, and the unconditional rate with the counts it came from. If it refuses, ' +
-          'give me the reasons and the four adjustments and stop; a refusal costs nothing.\n' +
-          '4. Then the rows. Every row is SELECTED ON THE OUTCOME: say so. Give me both counted ' +
-          'shares per row (before these moves, and usually), never a rate without its count, and ' +
-          'do not call any row a rule, a candidate, a finding or something that works. The order ' +
-          'is the gap between the two shares, which is display order, not a ranking.\n' +
-          '5. Pick ONE row, fetch its setup-first rerun document with full_rows: true, and run it ' +
-          'through run_scan. That asks the opposite question, out of every minute that looked ' +
-          'like this how many were followed by the move, and THAT rate is the honest one. Tell me ' +
-          'how far the two differ.\n' +
-          '6. Quote the honesty notes from the result verbatim, and give me one replay handoff ' +
-          'with how far back it sits.',
+          'how many days, and the unconditional rate with its counts. If it refuses, give the ' +
+          'returned reasons and adjustments, then stop; a refusal costs nothing.\n' +
+          '4. Describe the rows as selected on the outcome. Give both counted shares per row, ' +
+          'before these moves and across eligible minutes, without calling a row a rule, a ' +
+          'finding or something that works. The gap controls display order, not a ranking.\n' +
+          '5. Help me choose ONE row to examine. Retrieve its exact setup_first_rerun with ' +
+          'full_rows: true using the unchanged outcome_first request. Propose that condition ' +
+          'with its markets, dates, original outcome target and possible allowance consumption; ' +
+          'wait for my confirmation before run_scan. This asks how often the move followed the ' +
+          'condition across all eligible minutes. Read the original target, including reached ' +
+          'versus finished and the horizon, using full_outcomes if its rung was omitted. An ' +
+          'unavailable rung must be stated, never replaced by the default one-hour measure.\n' +
+          '6. The two reads have different denominators; do not subtract their rates as an ' +
+          'improvement. A rerun on the same period remains exploratory. Freeze the condition ' +
+          'and propose a separate period before claiming validation. Retain the result notes ' +
+          'about selection, missing data and overlap, and provide one returned replay handoff ' +
+          'with how far back it sits.'
       ),
   )
 
@@ -282,5 +296,5 @@ export const OUTCOME_FIRST_GRAMMAR = {
     note: 'A scope under the floor is REFUSED with its exact counts and four adjustments, and the refusal spends no allowance. One market always refuses.',
   },
   reading:
-    'A descriptive read over the population where the outcome held, never a rule search. Every row is selected on the outcome and carries two counted shares plus a setup-first rerun; the rerun is where the honest rate lives.',
+    'A descriptive read over the population where the outcome held, never a rule search. Every row is selected on the outcome and carries two counted shares plus a setup-first rerun; the rerun counts how often the move followed the condition and remains exploratory on the same period.',
 } as const

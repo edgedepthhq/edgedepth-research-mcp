@@ -43,14 +43,16 @@ describe('release identity is consistent', () => {
 })
 
 describe('tool schema', () => {
-  it('exposes exactly the twelve research tools', async () => {
+  it('exposes the research tools including screenshot grounding', async () => {
     const client = await connectClient()
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
       'base_rate',
       'commonality',
       'get_report',
+      'ground_screenshots',
       'interpret_prose',
+      'investigate_move',
       'list_features',
       'list_instruments',
       'next_page',
@@ -90,6 +92,8 @@ describe('tool schema', () => {
       shape[t.name] = Object.keys(props).sort()
     }
     expect(shape).toEqual({
+      ground_screenshots: ['document'],
+      investigate_move: ['document', 'event_id', 'family', 'full_sources', 'study'],
       list_features: ['compact', 'feature_ids', 'search'],
       list_instruments: ['full', 'if_none_match', 'symbols'],
       interpret_prose: ['language', 'time_zone'],
@@ -133,6 +137,8 @@ describe('tool schema', () => {
     const externalRead = { readOnlyHint: true, destructiveHint: false, openWorldHint: true }
     const meteredCompute = { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
     expect(annotations).toEqual({
+      ground_screenshots: closedRead,
+      investigate_move: closedRead,
       list_features: closedRead,
       list_instruments: closedRead,
       interpret_prose: externalRead,

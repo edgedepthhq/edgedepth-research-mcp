@@ -41,6 +41,35 @@ describe('natural-language proposal boundary', () => {
     }
   })
 
+  it('keeps a custom outcome, explicit consent and the original target through the worked prompt', async () => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const client = await connectClient()
+    try {
+      const custom = await client.getPrompt({ name: 'what_preceded_moves_like_this', arguments: {
+        move: '5 percent down at the close after 24 hours', scope: 'btcusdt, ethusdt, solusdt, bnbusdt, xrpusdt',
+      } })
+      const rendered = custom.messages.map(m => (m.content as { text: string }).text).join(' ')
+      expect(rendered).toContain('5 percent down at the close after 24 hours')
+      expect(rendered).not.toContain('10 percent up')
+      expect(rendered).not.toContain('magnitude: 0.1')
+      expect(rendered).toContain('wait for my confirmation, then call outcome_first')
+      expect(rendered).toContain('wait for my confirmation before run_scan')
+      expect(rendered).toContain('unchanged outcome_first request')
+      expect(rendered).toContain('full_outcomes')
+      expect(rendered).toContain('different denominators')
+      expect(rendered).toContain('separate period')
+      expect(rendered).toContain('do not guess a group roster')
+      const defaults = await client.getPrompt({ name: 'what_preceded_moves_like_this', arguments: {} })
+      const example = defaults.messages.map(m => (m.content as { text: string }).text).join(' ')
+      expect(example).toContain('10 percent up moves within 4 hours')
+      expect(example).toContain('recorded universe')
+      expect(example).toContain('as assumptions')
+      expect(fetch).not.toHaveBeenCalled()
+      expect(client.getInstructions()).toContain('For an outcome-first question, use outcome_first directly')
+    } finally { await client.close() }
+  })
+
   it('keeps interpretation-first routing and human consent in discovery and worked prompts', async () => {
     const client = await connectClient()
     try {

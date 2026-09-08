@@ -260,6 +260,7 @@ describe('prompts and resources (the examples an agent can reach)', () => {
     expect(prompts.map((p) => p.name).sort()).toEqual([
       'does_it_confirm',
       'how_common_is_it',
+      'investigate_screenshots',
       'investigate_symbol',
       'liquidation_cascade_bounce',
       'test_a_claim',
@@ -288,6 +289,7 @@ describe('prompts and resources (the examples an agent can reach)', () => {
     expect(resources.map((r) => r.uri).sort()).toEqual([
       'edgedepth://research/grammar',
       'edgedepth://research/outcome-first',
+      'edgedepth://research/screenshots',
       'ui://edgedepth/scan-evidence-v1.html',
     ])
     const read = await client.readResource({ uri: 'edgedepth://research/grammar' })
