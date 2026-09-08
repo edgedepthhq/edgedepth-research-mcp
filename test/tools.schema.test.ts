@@ -79,6 +79,7 @@ describe('tool schema', () => {
       'full_outcomes',
       'full_rows',
       'if_none_match',
+      'measure',
       'rows',
     ])
   })
@@ -97,7 +98,7 @@ describe('tool schema', () => {
       list_features: ['compact', 'feature_ids', 'search'],
       list_instruments: ['full', 'if_none_match', 'symbols'],
       interpret_prose: ['language', 'time_zone'],
-      run_scan: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'rows'],
+      run_scan: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'measure', 'rows'],
       run_cohort: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'rows'],
       run_stratified: ['document', 'if_none_match'],
       next_page: [

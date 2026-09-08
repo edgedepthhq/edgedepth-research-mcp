@@ -11,8 +11,10 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
         font:
           14px/1.5 system-ui,
           sans-serif;
-        color: light-dark(#152630, #e6edf3);
-        background: light-dark(#fff, #15202a);
+        --ink: light-dark(#152630, #e6edf3);
+        --surface: light-dark(#fff, #15202a);
+        color: var(--ink);
+        background: var(--surface);
       }
       * {
         box-sizing: border-box;
@@ -51,6 +53,16 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
         border-radius: 6px;
         background: transparent;
         color: inherit;
+      }
+      /* Native option popups do not reliably inherit the page's surface. */
+      select,
+      option {
+        background: var(--surface);
+        color: var(--ink);
+      }
+      select:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
       }
       button {
         cursor: pointer;

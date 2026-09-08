@@ -505,6 +505,7 @@ describe('the other tools are unchanged by the door', () => {
       'full_outcomes',
       'full_rows',
       'if_none_match',
+      'measure',
       'rows',
     ])
     const baseRate = tools.find((t) => t.name === 'base_rate')!
