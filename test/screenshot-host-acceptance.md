@@ -59,11 +59,12 @@ making any validation claim. Replay entitlement/tape coverage is checked at the
 replay surface and is separate from recorded feature coverage. Candle, trade-tape
 and order-book availability also differ within an entitled replay.
 
-Known acceptance issue from the originating task (2026-09-08): exhausted allowance
-can refuse a cached study before the API checks its cache. If a metered tool returns
-402, show that refusal; do not bypass it through service credentials or free reads.
-Screenshot grounding has no scan-allowance gate. This implementation does not fix
-the separate cached-rerun defect.
+Cache regression for release 0.8.0: repeat an existing study with an exhausted
+allowance and confirm it returns without debit. A new document must refuse without
+starting computation. The supporting engine exposes dedicated cache-read routes
+(commit 0a9352c); web e68113f uses them and preserves an explicit free-read choice.
+Check the actual deployed revisions before acceptance. Never bypass a refusal
+through service credentials. Screenshot grounding has no scan-allowance gate.
 
 Only after these native interactions are observed may their individual cases be
 called vision-host acceptance. A passed transport suite is not that evidence.
