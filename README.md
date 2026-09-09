@@ -134,7 +134,7 @@ so a client can attach it once instead of calling `list_features` every session.
 
 ## Recommended agent workflow
 
-1. For setup-first natural-language questions, call `interpret_prose` first with the user's question unchanged. The interpreter already uses the registry. Do not insert unstated thresholds, dates, markets or outcome definitions. Use `list_features` only when constructing or repairing a document. It is the live, closed grammar and prevents invented fields. Its result also carries the human reading page for any feature id: `https://edgedepth.com/research/readings/<id without the "feature." prefix>`, so `feature.vpin` is explained at [edgedepth.com/research/readings/vpin](https://edgedepth.com/research/readings/vpin). Open it when a person needs to know what a reading measures before a threshold is chosen.
+1. For setup-first questions, interpret prose in the host and call `prepare_study` with structured scope, predicates and outcome. It reuses the web validator and measure contract, validates current instrument membership and returns an unrun canonical definition plus a fresh allowance estimate. No external LLM is used. Preserve `user_stated`, `semantic_translation` (top 10% means rank >= 0.9) and `model_assumed` separately; only the latter denotes an invented proposal. Use `interpret_prose` unchanged as the raw-prose fallback. Use compact `list_features` for uncommon fields or validation repair, not every question.
 2. Call `list_instruments` only when you need to check the manifest-derived universe, coverage, and provenance. Its result carries the human market page in the same way, `https://edgedepth.com/research/symbols/<symbol>`, for a market still being recorded; a delisted market in the universe has no page, so offer that link rather than promising it.
 3. Show one short proposal: condition, exact markets and dates/time zone, outcome definition and horizon, and metering. Interpretation is free; fresh computations can consume allowance. Label every unprovided value as a proposed assumption using chip provenance. Resolve unsupported fragments and ask only questions that materially change the study. Keep exact JSON and diagnostics inspectable in tool details, available on request.
 4. Wait for explicit human approval, then pass the same document to `run_scan`. Changes require a new proposal and confirmation. The exact-document API does not store a proposal ID or a human approval receipt; client consent is required, and a model-supplied flag is not proof. On the supporting web release (b68c744 or later), returned `rq` workbench links load editable proposals and wait for Run; navigation never authorizes computation.
@@ -185,6 +185,7 @@ and remain subject to the person's coverage and entitlement.
 | --- | --- |
 | `list_features` | Returns the closed grammar registry: feature ids, types, ranges, operators, windows, sequence rules, limits, and error codes. `search`, `feature_ids` and `compact` narrow it. |
 | `list_instruments` | Returns the research universe and coverage. The default is a compact summary; use `symbols: [...]` for selected full records or `full: true` for the verbatim canonical universe. |
+| `prepare_study` | Free deterministic structured preparation, provenance and allowance estimate. Requires the web `/prepare` release first. |
 | `interpret_prose` | Turns prose into a proposed query document. It does not execute the query. Optional `time_zone` accepts an IANA time zone for calendar planning. |
 | `run_scan` | Executes a `research_query.v2` document and returns result bytes with counts, denominators, outcomes, the unconditional same-scope reference, and the reproducibility key. Projected by default (`rows`, `full_rows`, `full_counts`). |
 | `next_page` | Continues a prior scan with its opaque cursor. Never construct cursors manually. |
@@ -339,3 +340,21 @@ allowance is exhausted. The web uses dedicated engine cache-read routes; a missi
 result cannot start a new computation. A cache is revision-bound and may be evicted,
 so this is not a promise of permanent result storage. General replay access depends
 on the recorded date, market and plan; research links do not confer an event grant.
+
+### Host preparation and compact reports (local; release required)
+
+`prepare_study` accepts scope (symbols, offset-qualified from/to, provenance),
+setup (field/operator/value/provenance) and outcome (reached/finished, direction,
+fractional magnitude, horizon, provenance). Source metadata stays separate from
+the hashed query. Screenshot anchors must be visible or user supplied; uncertain
+times need clarification. Retrieve EdgeDepth readings with snapshot_at first.
+Qualitative rules remain model_assumed until the person approves the proposal.
+The server validates host claims, but cannot verify what the host actually saw.
+
+`get_report` defaults to a stated, fixed 1h overview with source counts and stored
+integrity status. It does not claim to revalidate the pin. `full:true` restores
+complete stored bytes, including all outcomes and definitions. This selection
+is not a saved requested measurement. Public report reads remain free.
+
+Deploy web before MCP. No production latency or vision-host acceptance is
+implied by local deterministic tests.

@@ -58,7 +58,7 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
     ({ claim }) =>
       userPrompt(
         `Test this claim against the recorded market with EdgeDepth: "${claim}".\n\n` +
-          'Start with interpret_prose using my question unchanged. Use list_features only if ' +
+          'Interpret my question in the host and use prepare_study; interpret_prose is a fallback. Use list_features only if ' +
           `construction or repair needs it. ${REPORT_CONTRACT}`,
       ),
   )
@@ -74,7 +74,7 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
     () =>
       userPrompt(
         'Do liquidation cascades usually bounce? Define the condition precisely with EdgeDepth ' +
-          'before running anything: start with interpret_prose using my question unchanged. ' +
+          'before running anything: use host interpretation and prepare_study; interpret_prose is a fallback. ' +
           'A small market set may be suggested, but label it as a proposed assumption and name ' +
           `the exact markets for my approval. ${REPORT_CONTRACT}`,
       ),

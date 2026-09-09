@@ -57,6 +57,7 @@ describe('tool schema', () => {
       'list_instruments',
       'next_page',
       'outcome_first',
+      'prepare_study',
       'run_cohort',
       'run_scan',
       'run_stratified',
@@ -97,6 +98,7 @@ describe('tool schema', () => {
       list_features: ['compact', 'feature_ids', 'search'],
       list_instruments: ['full', 'if_none_match', 'symbols'],
       interpret_prose: ['language', 'time_zone'],
+      prepare_study: ['outcome', 'scope', 'setup', 'source'],
       run_scan: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'rows'],
       run_cohort: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'rows'],
       run_stratified: ['document', 'if_none_match'],
@@ -112,7 +114,7 @@ describe('tool schema', () => {
       snapshot_at: ['at', 'symbol'],
       base_rate: ['field', 'from', 'operator', 'symbol', 'to', 'value'],
       commonality: ['moments'],
-      get_report: ['hash8'],
+      get_report: ['full', 'hash8'],
       outcome_first: [
         'direction',
         'from',
@@ -138,6 +140,7 @@ describe('tool schema', () => {
     const meteredCompute = { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
     expect(annotations).toEqual({
       ground_screenshots: closedRead,
+      prepare_study: closedRead,
       investigate_move: closedRead,
       list_features: closedRead,
       list_instruments: closedRead,

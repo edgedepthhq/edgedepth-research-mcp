@@ -38,6 +38,9 @@ export interface ApiResponseHeaders {
   creditsEstimate?: string
   creditsCharged?: string
   creditsRemaining?: string
+  meterIdentity?: string
+  meterBucket?: string
+  meterMonth?: string
   retryAfter?: string
   contentType?: string
 }
@@ -108,6 +111,9 @@ export async function apiRequest(base: string, req: ApiRequest): Promise<ApiResp
       creditsEstimate: h.get('x-research-credits-estimate') ?? undefined,
       creditsCharged: h.get('x-research-credits-charged') ?? undefined,
       creditsRemaining: h.get('x-research-credits-remaining') ?? undefined,
+      meterIdentity: h.get('x-research-meter-identity') ?? undefined,
+      meterBucket: h.get('x-research-meter-bucket') ?? undefined,
+      meterMonth: h.get('x-research-meter-month') ?? undefined,
       retryAfter: h.get('retry-after') ?? undefined,
       contentType: h.get('content-type') ?? undefined,
     },

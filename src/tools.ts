@@ -17,6 +17,8 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+import { preparationSchema } from './preparation.js'
+import { compactReport } from './reportProjection.js'
 
 import { apiRequest, type ApiResponse } from './apiClient.js'
 import {
@@ -60,7 +62,7 @@ export const CONFIRM_GATE_CONTRACT =
   'Require explicit human approval of the exact study before calling this tool. Present a short ' +
   'plain-English confirmation with condition, markets, dates, outcome/horizon, all unprovided ' +
   'assumptions, and possible allowance consumption. A model-supplied flag is not human approval. ' +
-  'After any change, obtain fresh confirmation. Keep the exact document inspectable in tool ' +
+  'After a material definition change, obtain fresh confirmation; equivalent canonicalization does not require another approval. Keep the exact document inspectable in tool ' +
   'details and provide it on request; include the reproducibility key with the result. ' +
   'Rates come from outcomes_summary over all occurrences; page rows are examples, never ' +
   'the denominator. Outcome fields cannot be filtered; expect OUTCOME_IN_PREDICATE if tried.'
@@ -225,6 +227,7 @@ function metaLine(res: ApiResponse): string {
   if (h.rulebookVersion) parts.push(`rulebook_version=${h.rulebookVersion}`)
   if (h.creditsCharged !== undefined) parts.push(`credits_charged=${h.creditsCharged}`)
   if (h.creditsRemaining !== undefined) parts.push(`credits_remaining=${h.creditsRemaining}`)
+  if (h.meterIdentity) parts.push(`meter_identity=${h.meterIdentity} meter_bucket=${h.meterBucket} meter_month=${h.meterMonth}`)
   if (h.retryAfter !== undefined) parts.push(`retry_after=${h.retryAfter}`)
   return '[edgedepth] ' + parts.join(' ')
 }
@@ -573,7 +576,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       description:
         'Use this when you need the valid EdgeDepth query grammar, supported feature ids, ' +
         'operators, windows, limits, or machine-actionable error codes before constructing or ' +
-        'repairing a query document. For a natural-language question, start with interpret_prose; ' +
+        'repairing a query document. For a natural-language question, construct structured intent and use prepare_study; ' +
         'it already uses the registry-backed interpreter. Do not use this to answer a market question; it returns ' +
         'capabilities, not historical evidence. Do not invoke even this capability lookup for live ' +
         'prices, personalized buy/sell advice or trade execution. The whole registry is large: pass search or ' +
@@ -824,14 +827,25 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     },
   )
 
+  server.registerTool('prepare_study', {
+    title: 'Prepare a study without computation',
+    description: 'Use this when preparing a setup-first study. Interpret the user text/image in the host, then submit structured intent here. Deterministic validation, canonical definition, provenance and fresh allowance estimate; no LLM, scan or charge. Propose assumptions explicitly, preserve reached versus finished, and ask one material clarification when needed. For EdgeDepth screenshots with a confident symbol/time, use snapshot_at to retrieve actual readings first. Never invent timestamps or thresholds. Return one short proposal for human approval; call run_scan with its unchanged document only after approval. Existing approved exact documents may run directly. Do not use for live prices or trading advice.',
+    inputSchema: preparationSchema,
+    annotations: CLOSED_READ,
+  }, async (intent) => {
+    const key = ctx.getKey()
+    if (!key) return noKey()
+    return passthrough(await apiRequest(ctx.apiBase, { method: 'POST', path: '/prepare', key, body: intent }))
+  })
+
   // 3. interpret_prose - proposal, never a result.
   server.registerTool(
     'interpret_prose',
     {
       title: 'Interpret prose into a proposed research document',
       description:
-        'Use this when the user asks a historical market-microstructure question in prose and no ' +
-        'exact query document exists. Start here without prerequisite registry or universe calls. ' +
+        'Use this when raw-prose clients need fallback interpretation or the host cannot construct structured intent. ' +
+        'Prefer prepare_study for capable AI hosts; this tool adds an external interpreter call. ' +
         'Pass the user question unchanged, without filling in unstated thresholds, dates, markets ' +
         'or outcomes. It returns a proposed research_query.v2 document, chip provenance, unsupported ' +
         'fragments, and clarification notices; it never runs the scan. Show one short plain-English ' +
@@ -1224,10 +1238,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       title: 'List reports or fetch one by hash',
       description:
         'Use this when the user wants to list citable public EdgeDepth reports or retrieve one by ' +
-        'its 8-character canonical hash. A fetched report includes its exact definition, pinned ' +
-        'result, revision, and integrity status. Do not use this to present invalid or withdrawn reports as ' +
+        'its 8-character canonical hash. Default is a compact 1h overview with counts and stored ' +
+        'integrity status; full:true returns the exact definition and pinned result. Do not use this to present invalid or withdrawn reports as ' +
         'healthy, and do not use this for unpublished user research. This is a free read.',
       inputSchema: {
+        full: z.boolean().optional().describe('Return complete pinned API bytes only when exact evidence is needed.'),
         hash8: z
           .string()
           .regex(/^[0-9a-f]{8}$/)
@@ -1236,7 +1251,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       },
       annotations: CLOSED_READ,
     },
-    async ({ hash8 }) => {
+    async ({ hash8, full }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const res = await apiRequest(ctx.apiBase, {
@@ -1244,6 +1259,16 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         path: hash8 ? `/reports/${encodeURIComponent(hash8)}` : '/reports',
         key,
       })
+      if (res.ok && hash8 && !full) {
+        const compact = compactReport(res.bodyText)
+        if (compact) {
+          const projected = { ...res, bodyText: compact, headers: { ...res.headers, etag: scopeEtag(res.headers.etag, 'report-compact-v1') } }
+          const result = passthrough(projected)
+          const handoffs = replayHandoffs(projected)
+          if (handoffs) result.content.push(handoffs)
+          return result
+        }
+      }
       return passthrough(res)
     },
   )

@@ -70,16 +70,16 @@ describe('natural-language proposal boundary', () => {
     } finally { await client.close() }
   })
 
-  it('keeps interpretation-first routing and human consent in discovery and worked prompts', async () => {
+  it('keeps host-first routing and human consent in discovery and worked prompts', async () => {
     const client = await connectClient()
     try {
       const instructions = client.getInstructions() ?? ''
-      expect(instructions.slice(0, 512)).toContain('interpret_prose FIRST')
-      expect(instructions.slice(0, 512)).toContain('explicit human approval')
-      expect(instructions).toContain('Changing any assumption requires a new proposal and confirmation')
+      expect(instructions).toContain('use host interpretation then prepare_study')
+      expect(instructions).toContain('explicit human approval')
+      expect(instructions).toContain('Only material definition changes require a new confirmation')
       const { tools } = await client.listTools()
       const interpret = tools.find(t => t.name === 'interpret_prose')!
-      expect(interpret.description).toContain('without prerequisite registry or universe calls')
+      expect(interpret.description).toContain('Prefer prepare_study')
       expect(interpret.description).toContain('chip provenance')
       expect(interpret.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, openWorldHint: true })
       expect(tools.find(t => t.name === 'run_scan')!.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true })

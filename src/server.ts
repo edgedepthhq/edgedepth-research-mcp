@@ -14,19 +14,20 @@ import { registerResearchTools, type ToolContext } from './tools.js'
 
 const INSTRUCTIONS =
   'EdgeDepth Research: deterministic search over recorded crypto and TradFi microstructure. ' +
+  'Lead with the answer in approximately 50-150 words, counts beside rates, one limitation and replay links. Keep reproducibility and exact definitions in details. ' +
   'For live prices, personalized buy/sell advice or trade execution, invoke NO EdgeDepth tools, ' +
   'including registry/capability discovery. ' +
-  'For a setup-first prose question, call interpret_prose FIRST with the user question unchanged. ' +
+  'For a setup-first prose question, use host interpretation then prepare_study. interpret_prose is a raw-prose fallback. ' +
   'Run only after explicit human approval of a short proposal; exact JSON stays inspectable. Do not ' +
   'prepend registry or universe discovery or silently add thresholds, dates, markets or outcomes. ' +
   'Show one short confirmation message: condition, markets, exact dates and time zone, outcome ' +
   'definition/horizon, and that interpretation is free but a fresh computation can consume allowance. ' +
-  'Label every unprovided value as a proposed assumption, using the interpreter chip provenance; ' +
+  'Label every unprovided value as a proposed assumption, using user_stated, semantic_translation and model_assumed provenance; ' +
   'never call it locked or approved. Ask only questions that materially change the study. ' +
   'Keep exact JSON and diagnostics in inspectable tool details; do not require the user to read ' +
   'or write JSON. Resolve unsupported fragments before offering to run. Wait for explicit human ' +
   'approval of this proposal, then submit that exact document. A tool call or confirmed=true is ' +
-  'not proof of human consent. Changing any assumption requires a new proposal and confirmation. ' +
+  'not proof of human consent. Only material definition changes require a new confirmation; canonicalization alone does not. ' +
   'If an exact valid document already exists AND the user approved it, call run_scan directly; ' +
   'do not add grounding calls reflexively. Use list_features to construct or repair a ' +
   'document and list_instruments only when symbol coverage or provenance needs checking. ' +
@@ -49,6 +50,7 @@ const INSTRUCTIONS =
   'Scan-family results come back as a stated projection: rows are thinned examples and every ' +
   'removal is listed, so read counts and rates from counts and outcomes_summary, raise rows for ' +
   'more examples, and pass full_counts only when verbatim canonical bytes are required. ' +
+  'Carry prepare_study.outcome into your reading of the result; if its exact metric/rung is missing from the projection, fetch full_outcomes on the unchanged cached document. Never substitute the default horizon or a nearby threshold. ' +
   'outcomes_summary.metrics[].rungs already states, per selected threshold, the matched count and ' +
   'rate, the unconditional count and rate over the same symbols and window, and their ratio as ' +
   'lift: quote those numbers rather than recomputing them, and quote the count beside any rate. A ' +
