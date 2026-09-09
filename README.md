@@ -164,6 +164,11 @@ substitute the worked example. The target grammar is available at
 Report the population and both counted shares for each displayed reading. Help
 the person choose one reading, retrieve its `setup_first_rerun` with `full_rows:
 true` on the unchanged request, and confirm that exact setup before `run_scan`.
+Pass the original target as `run_scan.measure` outside the unchanged document:
+`kind: "touch"` for reached, `"close"` for finished, plus the agreed direction,
+fractional magnitude and horizon. The returned workbench link keeps that display
+choice and remains an unrun draft. This does not alter the scan/cache key or the
+inline chart's explicitly labelled closing-return measurements.
 Read the original outcome target from the complete matched-set summary; request
 `full_outcomes` if the projection omitted its rung. An unavailable rung is stated,
 never replaced by the default horizon. The two reads have different denominators.

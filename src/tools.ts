@@ -249,9 +249,22 @@ function passthrough(res: ApiResponse, on304?: string): ToolResult {
   return { content: [text(metaLine(res)), text(res.bodyText)], isError: !res.ok }
 }
 
+const WORKBENCH_MEASURE_INPUT = z.object({
+  kind: z.enum(['close', 'touch']),
+  direction: z.enum(['up', 'down']),
+  magnitude: z.number().refine((value) => (OUTCOME_LADDER as readonly number[]).includes(value)),
+  horizon: z.enum(OUTCOME_HORIZONS),
+}).strict().refine((value) => value.direction !== 'down' || value.magnitude <= OUTCOME_LADDER_DOWN_MAX)
+  .optional().describe(
+    'Optional agreed outcome for the workbench link only: kind close means finished, touch means ' +
+    "reached; magnitude is a fraction (0.02 means 2%). Preserve the user's exact choice, including " +
+    'the original outcome_first target. This display choice never enters the query, changes ' +
+    'the cache key, requests another computation, or changes the inline closing-return chart.',
+  )
+
 /** Render authenticated web replay handoffs from the additive v4
  * representative block without changing the canonical body block. */
-function replayHandoffs(res: ApiResponse): TextBlock | null {
+function replayHandoffs(res: ApiResponse, measure?: z.infer<typeof WORKBENCH_MEASURE_INPUT>): TextBlock | null {
   if (!res.ok || !res.bodyText) return null
   let parsed: unknown
   try {
@@ -269,7 +282,10 @@ function replayHandoffs(res: ApiResponse): TextBlock | null {
   if (body.query && typeof body.query === 'object') {
     links.push(
       'definition_handoff: https://app.edgedepth.com/research/workbench?rq=' +
-        encodeURIComponent(JSON.stringify(body.query)),
+        encodeURIComponent(JSON.stringify(body.query)) +
+        (measure ? '&measure=' + encodeURIComponent([
+          measure.kind, measure.direction, measure.magnitude, measure.horizon,
+        ].join(',')) : ''),
     )
   }
   for (const value of representatives) {
@@ -958,11 +974,12 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               'hundreds of KB this way and can exceed a client tool-result limit. Default ' +
               'returns a projection that only ever REMOVES, and states each removal.',
           ),
+        measure: WORKBENCH_MEASURE_INPUT,
         ...ROWS_INPUT,
       },
       annotations: METERED_COMPUTE,
     },
-    async ({ document, if_none_match, full_counts, rows, full_rows, full_outcomes }) => {
+    async ({ document, if_none_match, full_counts, rows, full_rows, full_outcomes, measure }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const lean = leanOptions({ rows, full_rows, full_outcomes })
@@ -1005,7 +1022,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       // paired one in, so a baseline that failed still arrives whole.
       const folded = !full_counts && lean.answer && baselineSummaryOf(baseline) !== undefined
       if (baseline) result.content.push(baselineReference(baseline, !full_counts, folded))
-      const handoffs = replayHandoffs(res)
+      const handoffs = replayHandoffs(res, measure)
       if (handoffs) result.content.push(handoffs)
       const chart = scanChartMeta(res, baseline)
       if (chart) result._meta = chart

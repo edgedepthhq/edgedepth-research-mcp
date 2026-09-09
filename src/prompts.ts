@@ -201,7 +201,9 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
           '5. Help me choose ONE row to examine. Retrieve its exact setup_first_rerun with ' +
           'full_rows: true using the unchanged outcome_first request. Propose that condition ' +
           'with its markets, dates, original outcome target and possible allowance consumption; ' +
-          'wait for my confirmation before run_scan. This asks how often the move followed the ' +
+          'wait for my confirmation before run_scan. Pass the original target as its optional ' +
+          'measure (reached becomes touch, finished becomes close), outside the unchanged document, ' +
+          'so the workbench link keeps the question. This asks how often the move followed the ' +
           'condition across all eligible minutes. Read the original target, including reached ' +
           'versus finished and the horizon, using full_outcomes if its rung was omitted. An ' +
           'unavailable rung must be stated, never replaced by the default one-hour measure.\n' +
