@@ -167,8 +167,7 @@ true` on the unchanged request, and confirm that exact setup before `run_scan`.
 Pass the original target as `run_scan.measure` outside the unchanged document:
 `kind: "touch"` for reached, `"close"` for finished, plus the agreed direction,
 fractional magnitude and horizon. The returned workbench link keeps that display
-choice and remains an unrun draft. This does not alter the scan/cache key or the
-inline chart's explicitly labelled closing-return measurements.
+choice and remains an unrun draft. This does not alter the scan/cache key. The local selected-outcome addition below preserves the exact reading separately from closing-return exploration.
 Read the original outcome target from the complete matched-set summary; request
 `full_outcomes` if the projection omitted its rung. An unavailable rung is stated,
 never replaced by the default horizon. The two reads have different denominators.
@@ -177,10 +176,9 @@ period before claiming validation.
 
 A named moment can be inspected with `snapshot_at`; `commonality` compares multiple
 supplied moments. The screenshot path below adds bounded explicit close-range investigation and the existing
-detector geometry. Automatic move selection is not exposed through MCP. Historical marker browsing, named
-sector/volume-tier resolution, and an exact pre-run allowance quote are not MCP
-capabilities yet. `list_instruments` supplies coverage and instrument provenance,
-not sector membership. Use an exact supplied roster or propose a resolvable scope;
+detector geometry. Automatic move selection is not exposed through MCP. Historical marker browsing and general volume-tier resolution are not MCP
+capabilities yet. The local resolve_scope addition below supplies explicit sector resolution after its web release. `list_instruments` supplies coverage and instrument provenance,
+not sector membership. Use resolve_scope for recorded sector membership when available; otherwise use an exact supplied roster;
 never invent group members or a numeric price. Replay handoffs open the web surface
 and remain subject to the person's coverage and entitlement.
 
@@ -363,3 +361,28 @@ is not a saved requested measurement. Public report reads remain free.
 
 Deploy web before MCP. No production latency or vision-host acceptance is
 implied by local deterministic tests.
+
+
+### Research journey continuity (local, release required)
+
+Deploy web `/api/v1/research/scope` before this MCP build. `resolve_scope` uses
+recorded sector tags and the same resolver as the web move-first door, filtered
+to confirmed Binance crypto linear perpetuals. It returns the exact roster and
+per-market history; missing/ambiguous/thin/oversized populations stay blocked.
+There is no automatic widening. Membership is current recorded classification,
+not point-in-time membership, and history does not prove feature completeness.
+
+`run_scan.measure` now adds `selected_outcome.v1` alongside canonical bytes,
+including the exact selected full-population count, opposite direction and
+unconditional reference. Zero counts remain visible, zero denominators have no
+rate, and unavailable metrics or rungs are never substituted. The inline view
+leads with that same reading; its secondary chart remains explicitly closing-
+return exploration. Existing reports keep their fixed, stated overview.
+
+Similarity is exploratory proximity on stated dimensions. Monitoring requires
+exact satisfaction of a versioned supported predicate, not identical historical
+numbers. A discovered threshold must be labelled proposed, frozen before a
+separate-period evaluation, and any tuning disclosed. No similarity-to-alert
+conversion, trading-rule evaluator or automated forward-test readiness verdict
+is added. Saving and monitoring use the private web handoff and explicit
+confirmation. An alert reports condition satisfaction, not a repeat prediction.

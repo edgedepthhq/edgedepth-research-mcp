@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { selectedOutcome, type SelectedMeasure } from './selectedOutcome.js'
 import type { ApiResponse } from './apiClient.js'
 import { SCAN_CHART_HTML } from './scanChartHtml.js'
 
@@ -22,6 +23,7 @@ function body(response: ApiResponse | null): Record<string, unknown> | null {
 export function scanChartMeta(
   response: ApiResponse,
   reference: ApiResponse | null,
+  measure?: SelectedMeasure,
 ): Record<string, unknown> | undefined {
   const scan = body(response)
   if (!scan || !object(scan.outcomes_summary) || !object(scan.outcomes_summary.metrics))
@@ -38,6 +40,7 @@ export function scanChartMeta(
     referenceSummary && object(referenceSummary.metrics) ? referenceSummary.metrics : {}
   return {
     edgedepthEvidence: {
+      selectedOutcome: selectedOutcome(response, reference, measure),
       metrics,
       referenceMetrics: Object.fromEntries(
         Object.keys(metrics)

@@ -45,12 +45,14 @@ const INSTRUCTIONS =
   'and the limitations. Zero matches, n=1 and inconclusive findings are valid answers. Retain ' +
   'coverage exclusions, overlap and representative-selection caveats. Offer ONE relevant next ' +
   'action: inspect a returned replay, change one assumption, or open an existing report. ' +
+  'For a pointed crypto move, use resolve_scope to obtain recorded sector membership and the explicit roster; do not broaden a blocked sector. ' +
+  'When run_scan.measure is supplied, lead with selected_outcome, including its unavailable or zero state, before any default overview. ' +
   'Saving and alerts are web actions, not MCP capabilities. On the supporting web release, ' +
   'returned workbench links load editable proposals; navigation never authorizes a scan. ' +
   'Scan-family results come back as a stated projection: rows are thinned examples and every ' +
   'removal is listed, so read counts and rates from counts and outcomes_summary, raise rows for ' +
   'more examples, and pass full_counts only when verbatim canonical bytes are required. ' +
-  'Carry prepare_study.outcome into your reading of the result; if its exact metric/rung is missing from the projection, fetch full_outcomes on the unchanged cached document. Never substitute the default horizon or a nearby threshold. ' +
+  'Carry prepare_study.outcome into run_scan.measure and your reading of the result; if its exact metric/rung is missing from the projection, fetch full_outcomes on the unchanged cached document. Never substitute the default horizon or a nearby threshold. ' +
   'outcomes_summary.metrics[].rungs already states, per selected threshold, the matched count and ' +
   'rate, the unconditional count and rate over the same symbols and window, and their ratio as ' +
   'lift: quote those numbers rather than recomputing them, and quote the count beside any rate. A ' +

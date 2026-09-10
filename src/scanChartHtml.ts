@@ -166,7 +166,9 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     <p id="status" role="status">
       Waiting for the study result. No computation is started by this display.
     </p>
+    <section id="selected" hidden><h2>Your chosen outcome</h2><p id="selectedLabel"></p><p id="selectedCounts"></p><p id="selectedNote" class="note"></p></section>
     <div id="app" hidden>
+      <h3>Closing-return exploration</h3>
       <div class="controls">
         <label
           >View horizon
@@ -509,6 +511,19 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
             return;
           }
           evidence = data;
+          var selected = data.selectedOutcome;
+          $("selected").hidden = !obj(selected);
+          if (obj(selected) && obj(selected.measure)) {
+            var choice = selected.measure;
+            say("selectedLabel", (choice.kind === "touch" ? "Touches " : "Finishes ") + choice.direction + " " + pct(choice.magnitude) + " or more " + (choice.kind === "touch" ? "within " : "after ") + choice.horizon + ".");
+            var describe = function (r) {
+              return obj(r) && r.available && count(r.count) && count(r.present)
+                ? fmt(r.count) + " / " + fmt(r.present) + "; " + fmt(r.absent) + " missing"
+                : "unavailable for this exact measurement";
+            };
+            say("selectedCounts", "Chosen: " + describe(selected.matched) + ". Opposite: " + describe(selected.opposite) + ". Unconditional same-scope reference: " + describe(selected.reference) + ".");
+            say("selectedNote", Array.isArray(selected.limitations) ? selected.limitations.join(" ") : "");
+          }
           var names = [
             "fwd_ret_30m",
             "fwd_ret_1h",

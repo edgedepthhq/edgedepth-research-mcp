@@ -35,6 +35,7 @@ import {
   type LeanOptions,
   type OutcomeFirstLeanOptions,
 } from './projection.js'
+import { selectedOutcome } from './selectedOutcome.js'
 import { scanChartMeta, SCAN_CHART_URI } from './scanChart.js'
 import { getRegistry } from './registry.js'
 import { registerScreenshotTools } from './screenshots.js'
@@ -843,6 +844,18 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     },
   )
 
+  server.registerTool('resolve_scope', {
+    title: 'Resolve an explicit crypto sector population',
+    description: 'Use this when a pointed move or symbol needs an explicit sector population. Do not use it to authorize computation or infer historical membership. Returns recorded sector choices, the exact eligible Binance crypto perpetual roster, coverage and membership limitations. Missing, ambiguous, thin or oversized sectors remain blocked, never broadened. Current tags are not point-in-time membership. Use the returned roster in prepare_study or investigate_move; this does not approve computation.',
+    inputSchema: { symbol: z.string(), sector: z.string().optional() },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ symbol, sector }) => {
+    const key = ctx.getKey()
+    if (!key) return noKey()
+    const params = new URLSearchParams({ symbol, ...(sector ? { sector } : {}) })
+    return passthrough(await apiRequest(ctx.apiBase, { method: 'GET', path: `/scope?${params}`, key }))
+  })
+
   server.registerTool('prepare_study', {
     title: 'Prepare a study without computation',
     description: 'Use this when preparing a setup-first study. Interpret the user text/image in the host, then submit structured intent here. Deterministic validation, canonical definition, provenance and fresh allowance estimate; no LLM, scan or charge. Propose assumptions explicitly, preserve reached versus finished, and ask one material clarification when needed. For EdgeDepth screenshots with a confident symbol/time, use snapshot_at to retrieve actual readings first. Never invent timestamps or thresholds. Return one short proposal for human approval; call run_scan with its unchanged document only after approval. Existing approved exact documents may run directly. Do not use for live prices or trading advice.',
@@ -1022,9 +1035,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       // paired one in, so a baseline that failed still arrives whole.
       const folded = !full_counts && lean.answer && baselineSummaryOf(baseline) !== undefined
       if (baseline) result.content.push(baselineReference(baseline, !full_counts, folded))
+      const selected = selectedOutcome(res, baseline, measure)
+      if (selected) result.content.splice(1, 0, text(JSON.stringify({ selected_outcome: selected })))
       const handoffs = replayHandoffs(res, measure)
       if (handoffs) result.content.push(handoffs)
-      const chart = scanChartMeta(res, baseline)
+      const chart = scanChartMeta(res, baseline, measure)
       if (chart) result._meta = chart
       return withRepair(result, res, ctx, key)
     },
