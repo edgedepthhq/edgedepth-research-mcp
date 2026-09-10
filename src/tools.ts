@@ -19,6 +19,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { preparationSchema } from './preparation.js'
 import { compactReport } from './reportProjection.js'
+import { compactTradeResult } from './tradeProjection.js'
 
 import { apiRequest, type ApiResponse } from './apiClient.js'
 import {
@@ -1395,16 +1396,18 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           'All rule values must be explicit. Fractions are 0..1; stop >0; at least one target or trail >0. Hold 1..1440, costs 0..100 bps per side. ' +
           'source_measurement is a string-valued map retaining the source query hash, dataset revision, measurement version, question, selected_measure JSON and source_investigation URL. ' +
           'Population cursors are unsupported; the test uses every match, not a page.'),
-        if_none_match: z.string().optional().describe('Previous ETag, passed verbatim for a free revalidation.'),
+        full_trades: z.boolean().optional().describe('Return every journal row and canonical result bytes. Default returns the complete summary and first 10 chronological journal examples.'),
+        if_none_match: z.string().optional().describe('Previous ETag from this same projection for a free revalidation.'),
       },
       annotations: METERED_COMPUTE,
     },
-    async ({ document, if_none_match }) => {
+    async ({ document, if_none_match, full_trades }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const res = await apiRequest(ctx.apiBase, { method: 'POST', path: '/trade-test', key,
-        body: document, ifNoneMatch: if_none_match })
-      return passthrough(res, 'Read the unchanged request without If-None-Match for its cached trade result. No alert or trade was executed.')
+        body: document, ifNoneMatch: full_trades ? if_none_match : unscopeEtag(if_none_match, 'trade_summary.v1') })
+      const projected = full_trades ? res : compactTradeResult({ ...res, headers: { ...res.headers, etag: scopeEtag(res.headers.etag, 'trade_summary.v1') } })
+      return passthrough(projected, 'Read the unchanged request without If-None-Match for its cached trade result. No alert or trade was executed.')
     },
   )
 

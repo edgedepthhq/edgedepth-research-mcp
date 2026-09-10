@@ -413,3 +413,8 @@ Backend and web releases must precede the MCP. Old periods without an open
 column return TRADE_OPENS_UNAVAILABLE without computation or debit. New schema
 rows can still be missing and are counted individually. No npm/registry
 publication is authorized by the hosted release.
+
+Trade results default to the complete summary and first ten chronological journal
+examples. full_trades:true restores all canonical bytes. Projection-specific ETags
+prevent revalidation across these display modes; neither mode changes the rules,
+complete-result counts, reproducibility key or computation charge.

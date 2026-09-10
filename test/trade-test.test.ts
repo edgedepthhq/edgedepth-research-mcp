@@ -19,3 +19,12 @@ it('missing credentials cannot start a test', async () => {
  const fetch = vi.fn(); vi.stubGlobal('fetch', fetch); const client = await connectClient(() => undefined)
  const result = await client.callTool({ name: 'run_trade_test', arguments: { document: {} } }); expect(result.isError).toBe(true); expect(fetch).not.toHaveBeenCalled(); await client.close()
 })
+
+it('compact journal rows never change the complete summary or canonical full read', async () => {
+ const { compactTradeResult } = await import('../src/tradeProjection.js')
+ const body = { trade_encoding: 'trade_result.v1', summary: { signals: 30, completed: 25, missing: 2, overlap_skipped: 3, expectancy_after_fees_slippage: -.01 }, query: { exact: true }, trades: Array.from({ length: 30 }, (_, i) => ({ signal: i })) }
+ const original = { status: 200, ok: true, notModified: false, bodyText: JSON.stringify(body), headers: {} }
+ const compact = JSON.parse(compactTradeResult(original).bodyText)
+ expect(compact.summary).toEqual(body.summary); expect(compact.query).toEqual(body.query); expect(compact.trades).toHaveLength(10); expect(compact.trade_projection.total_journal_rows).toBe(30)
+ expect(JSON.parse(original.bodyText).trades).toHaveLength(30)
+})
