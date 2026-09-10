@@ -58,6 +58,7 @@ describe('tool schema', () => {
       'next_page',
       'outcome_first',
       'prepare_study',
+      'resolve_scope',
       'run_cohort',
       'run_scan',
       'run_stratified',
@@ -99,6 +100,7 @@ describe('tool schema', () => {
       list_features: ['compact', 'feature_ids', 'search'],
       list_instruments: ['full', 'if_none_match', 'symbols'],
       interpret_prose: ['language', 'time_zone'],
+      resolve_scope: ['sector', 'symbol'],
       prepare_study: ['outcome', 'scope', 'setup', 'source'],
       run_scan: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'measure', 'rows'],
       run_cohort: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'rows'],
@@ -142,6 +144,7 @@ describe('tool schema', () => {
     expect(annotations).toEqual({
       ground_screenshots: closedRead,
       prepare_study: closedRead,
+      resolve_scope: closedRead,
       investigate_move: closedRead,
       list_features: closedRead,
       list_instruments: closedRead,
