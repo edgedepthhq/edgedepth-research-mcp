@@ -3,6 +3,9 @@
   "cohort_encoding": "cohort_result.v5",
   "stratified_encoding": "stratified_result.v4",
   "features": [
+    "feature.basis_change_1h",
+    "feature.basis_pct",
+    "feature.basis_pctrank_30d",
     "feature.book_imbalance",
     "feature.book_imbalance_pctrank",
     "feature.candle_body_15m",
@@ -36,6 +39,7 @@
     "feature.desc_resistance_span_days",
     "feature.desc_resistance_support",
     "feature.desc_resistance_touches",
+    "feature.funding_basis_divergence",
     "feature.funding_norm",
     "feature.funding_rate",
     "feature.global_long_ratio",
@@ -52,6 +56,7 @@
     "feature.realized_vol_pctrank",
     "feature.ret_15m",
     "feature.ret_1h",
+    "feature.spot_perp_close_basis",
     "feature.spread_norm",
     "feature.taker_buy_ratio_15m",
     "feature.taker_net_ratio_1h",
@@ -62,7 +67,27 @@
     "feature.vpin_regime",
     "feature.vwap_dist"
   ],
-  "feature_count": 58,
+  "feature_scopes": {
+    "feature.spot_perp_close_basis": {
+      "symbols": [
+        "btcusdt",
+        "ethusdt",
+        "solusdt"
+      ],
+      "from": "2026-08-01T00:01:00Z",
+      "to": "2026-09-09T00:00:00Z",
+      "price_type": "fully_closed_synchronized_1m_trade_close",
+      "units": "signed_fraction"
+    }
+  },
+  "feature_count": 63,
+  "recorded_only_features": [
+    "feature.basis_change_1h",
+    "feature.basis_pct",
+    "feature.basis_pctrank_30d",
+    "feature.funding_basis_divergence",
+    "feature.spot_perp_close_basis"
+  ],
   "horizons": [
     "30m",
     "1h",
