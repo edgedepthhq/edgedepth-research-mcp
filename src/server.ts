@@ -46,6 +46,7 @@ const INSTRUCTIONS =
   'coverage exclusions, overlap and representative-selection caveats. Offer ONE relevant next ' +
   'action: inspect a returned replay, change one assumption, or open an existing report. ' +
   'For a pointed crypto move, use resolve_scope to obtain recorded sector membership and the explicit roster; do not broaden a blocked sector. ' +
+  'For profitability questions, propose the separate run_trade_test execution rules and obtain explicit approval. Never substitute descriptive MFE/MAE or outcome rates for realized trade results. Preserve source measurement and setup continuity. ' +
   'When run_scan.measure is supplied, lead with selected_outcome, including its unavailable or zero state, before any default overview. ' +
   'Saving and alerts are web actions, not MCP capabilities. On the supporting web release, ' +
   'returned workbench links load editable proposals; navigation never authorizes a scan. ' +

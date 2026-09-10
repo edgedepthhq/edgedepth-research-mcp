@@ -386,3 +386,30 @@ separate-period evaluation, and any tuning disclosed. No similarity-to-alert
 conversion, trading-rule evaluator or automated forward-test readiness verdict
 is added. Saving and monitoring use the private web handoff and explicit
 confirmation. An alert reports condition satisfaction, not a repeat prediction.
+
+### Optional trade-rule test (0.9.0, hosted release pending)
+
+Use run_trade_test only after a separate explicit proposal and human approval.
+It wraps the exact record population in trade_query.v1 with all trade_rules.v1
+parameters and string-valued source_measurement provenance. Default proposals:
+1% stop, no fixed target, 2% close-ratcheted trail, 240 minute bars, 6 basis points
+fee and 10 basis points slippage per side, skipping same-market signals until
+exit. Choose long/short explicitly. These are editable assumptions, not optimal
+parameters. Limits are 31 days, 100 explicit markets and 5,000 signals.
+
+Entry is the next minute open. Gap stops fill at the worse open, and stop wins
+if stop and target occur in one bar. Trails update from completed closes and
+apply from the next bar. Missing opens/price bars are unavailable; no prior-close
+substitution. Bucket ends are interval labels, not exact fill timestamps.
+
+Read wins, losses, average win/loss and expectancy from the complete trade
+summary, never from MFE or page rows. Returns include fees/slippage but omit
+funding and other execution costs; they are not fully net or portfolio returns.
+Keep the original question, selected_measure JSON, measurement version, query
+hash, dataset revision and source investigation in source_measurement. Web saves
+and downloads retain the result. Alerts remain separate setup recurrences.
+
+Backend and web releases must precede the MCP. Old periods without an open
+column return TRADE_OPENS_UNAVAILABLE without computation or debit. New schema
+rows can still be missing and are counted individually. No npm/registry
+publication is authorized by the hosted release.
