@@ -49,6 +49,7 @@ describe('tool schema', () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'base_rate',
       'commonality',
+      'get_investigation_bundle',
       'get_report',
       'ground_screenshots',
       'interpret_prose',
@@ -119,6 +120,7 @@ describe('tool schema', () => {
       snapshot_at: ['at', 'symbol'],
       base_rate: ['field', 'from', 'operator', 'symbol', 'to', 'value'],
       commonality: ['moments'],
+      get_investigation_bundle: ['full', 'id'],
       get_report: ['full', 'hash8'],
       outcome_first: [
         'direction',
@@ -156,6 +158,7 @@ describe('tool schema', () => {
       snapshot_at: closedRead,
       base_rate: closedRead,
       commonality: closedRead,
+      get_investigation_bundle: closedRead,
       get_report: closedRead,
       run_cohort: meteredCompute,
       run_stratified: meteredCompute,

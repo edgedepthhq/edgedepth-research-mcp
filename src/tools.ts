@@ -1233,6 +1233,26 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     },
   )
 
+  server.registerTool(
+    'get_investigation_bundle',
+    {
+      title: 'Read stored investigation evidence',
+      description: 'Use this when the user wants an existing versioned investigation by its SHA256 id. Compact by default; full=true restores pinned input observations. Deterministic descriptive metrics, exact event/as-of bounds, contradictions and missing analyses come from the same API as the web. No model call, new investigation, scan, allowance debit or publication. Missing comparable populations must remain unavailable; propose an exact study through the existing approval flow before computing them. Do not use this to infer initiators, causality, spot lead/lag, hidden liquidations or forecasts.',
+      inputSchema: {
+        id: z.string().regex(/^[a-f0-9]{64}$/).describe('Exact stored bundle id from an evidence link.'),
+        full: z.boolean().optional().describe('Include all pinned input observations; default is compact.'),
+      },
+      annotations: CLOSED_READ,
+    },
+    async ({ id, full }) => {
+      const key = ctx.getKey()
+      if (!key) return noKey()
+      return passthrough(await apiRequest(ctx.apiBase, {
+        method: 'GET', path: `/investigation-bundle?id=${id}&full=${full === true}`, key,
+      }))
+    },
+  )
+
   // 7. commonality - via the SHARED web endpoint (decision 7).
   server.registerTool(
     'commonality',

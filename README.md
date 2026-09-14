@@ -418,3 +418,14 @@ Trade results default to the complete summary and first ten chronological journa
 examples. full_trades:true restores all canonical bytes. Projection-specific ETags
 prevent revalidation across these display modes; neither mode changes the rules,
 complete-result counts, reproducibility key or computation charge.
+
+## Stored investigation evidence (local, pending release)
+
+`get_investigation_bundle` reads an existing SHA256 bundle ID through the same
+API as the web. Compact output retains exact event/as-of bounds, source receipts,
+metrics, deterministic observations, contradictory evidence and missing analyses;
+`full: true` restores pinned input observations. No model, scan, allowance debit
+or publication occurs. Missing comparable populations stay unavailable and use
+the existing exact-study approval flow when requested. Backend and web readers
+and explicitly reviewed artifacts must be provisioned before this tool can read
+a bundle; this change does not enable a publishing job.
