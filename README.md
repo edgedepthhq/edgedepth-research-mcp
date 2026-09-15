@@ -429,3 +429,24 @@ or publication occurs. Missing comparable populations stay unavailable and use
 the existing exact-study approval flow when requested. Backend and web readers
 and explicitly reviewed artifacts must be provisioned before this tool can read
 a bundle; this change does not enable a publishing job.
+
+## Single-venue Hyperliquid research (2026-09-15, local)
+
+The first cross-venue replication slice adds `exchange=hl` to API v1 universe
+reads and `exchange: "hl"` to MCP list_instruments. Omission remains Binance.
+Exact record documents select HL with `["identity.exchange", "eq", "hl"]` and
+recorded lowercase IDs such as `btc`. Only one venue is permitted per document;
+run paired definitions separately over verified overlapping feature coverage.
+Binance canonical hashes, default scope and result bytes remain unchanged.
+
+Daily/consolidated reads, query/baseline/cohort/prevalence/stratified/trade wrappers,
+page setup hydration and revision checks follow the selected venue. Missing
+features stay absent. HL metadata not established by manifests stays unknown.
+HL live monitoring and replay/workbench handoffs are unavailable in this slice.
+Outcome-first, snapshot, prose preparation, named scopes and UI venue selection
+remain separate gates; do not infer HL support there from record validation.
+
+Delivery order is backend, web API/validator, then MCP. No source extraction,
+dataset promotion, capture change or production release occurred. Local BTC
+September 12 proof and continuation owner are in the task hub's canonical
+`tasks/research-cross-venue-replication.md` and `outputs/cross-venue-20260915/`.

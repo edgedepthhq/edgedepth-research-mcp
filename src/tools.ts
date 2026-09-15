@@ -276,6 +276,11 @@ function replayHandoffs(res: ApiResponse, measure?: z.infer<typeof WORKBENCH_MEA
   }
   if (!parsed || typeof parsed !== 'object') return null
   const body = parsed as Record<string, unknown>
+  const query = body.query as {where?: {all?: unknown[]}} | undefined
+  if (query?.where?.all?.some((clause) => Array.isArray(clause) && clause[0] === 'identity.exchange' &&
+    (clause[2] === 'hl' || (Array.isArray(clause[2]) && clause[2].includes('hl'))))) {
+    return text('Hyperliquid historical result. Replay, symbol-page and live-monitoring handoffs are unavailable in this milestone; retain the exact query and result for comparison.')
+  }
   const representatives = Array.isArray(body.representatives) ? body.representatives : []
   const key = body.reproducibility_key as Record<string, unknown> | undefined
   const hash = typeof key?.canonical_query_hash === 'string' ? key.canonical_query_hash : ''
@@ -683,6 +688,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'historical outcomes. This is a free ' +
         'deterministic read.',
       inputSchema: {
+        exchange: z.enum(['binancef', 'hl']).optional().describe('Recorded venue. Defaults to binancef. Use hl for Hyperliquid; run studies separately per venue, with explicit overlapping dates and missing-feature checks.'),
         symbols: z
           .union([z.string(), z.array(z.string())])
           .optional()
@@ -705,9 +711,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       },
       annotations: CLOSED_READ,
     },
-    async ({ symbols, full, if_none_match }) => {
+    async ({ symbols, full, if_none_match, exchange }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
+      const venueHint = exchange === 'hl' ? 'Hyperliquid research uses exact recorded IDs and an explicit identity.exchange clause. Binance symbol pages and live monitoring are not HL handoffs.' : SYMBOL_DOC_HINT
       const requested = coerceJsonish(symbols)
       const wanted =
         requested !== undefined
@@ -726,7 +733,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
             : 'summary'
       const res = await apiRequest(ctx.apiBase, {
         method: 'GET',
-        path: '/universe',
+        path: exchange === 'hl' ? '/universe?exchange=hl' : '/universe',
         key,
         ifNoneMatch:
           projectionTag === null ? if_none_match : unscopeEtag(if_none_match, projectionTag),
@@ -740,7 +747,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         // The canonical-bytes mode still names the instruments, so it gets the
         // same door. Never on a 304 (no body) or an error.
         if (full === true && res.status === 200 && !res.notModified) {
-          out.content.push(text(SYMBOL_DOC_HINT))
+          out.content.push(text(venueHint))
         }
         return out
       }
@@ -795,7 +802,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           content: [
             text(metaLine(scoped)),
             text(JSON.stringify(projection)),
-            text(SYMBOL_DOC_HINT),
+            text(venueHint),
           ],
         }
       }
@@ -840,7 +847,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         notes: body.notes,
       }
       return {
-        content: [text(metaLine(scoped)), text(JSON.stringify(summary)), text(SYMBOL_DOC_HINT)],
+        content: [text(metaLine(scoped)), text(JSON.stringify(summary)), text(venueHint)],
       }
     },
   )

@@ -521,3 +521,13 @@ describe('client-serialization repair + universe sizing (0.2.2)', () => {
     expect(meta).toContain('etag=W/"uni+summary"')
   })
 })
+
+
+it('selects Hyperliquid discovery and preserves explicit venue notes', async () => {
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({instruments:[{symbol:'btc',exchange:'hl'}],notes:['HL feature gaps remain absent']})))
+  const client = await connectClient()
+  const res = await client.callTool({name:'list_instruments',arguments:{exchange:'hl',symbols:['btc']}})
+  expect(String(fetchMock.mock.calls[0][0])).toContain('/universe?exchange=hl')
+  expect(texts(res).join(' ')).toContain('HL feature gaps remain absent')
+  expect(texts(res).join(' ')).not.toContain('btcusdt ->')
+})

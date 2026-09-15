@@ -100,7 +100,7 @@ describe('tool schema', () => {
       ground_screenshots: ['document'],
       investigate_move: ['document', 'event_id', 'family', 'full_sources', 'study'],
       list_features: ['compact', 'feature_ids', 'search'],
-      list_instruments: ['full', 'if_none_match', 'symbols'],
+      list_instruments: ['exchange', 'full', 'if_none_match', 'symbols'],
       interpret_prose: ['language', 'time_zone'],
       resolve_scope: ['sector', 'symbol'],
       prepare_study: ['outcome', 'scope', 'setup', 'source'],
