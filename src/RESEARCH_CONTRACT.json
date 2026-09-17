@@ -50,6 +50,7 @@
     "feature.liq_short_notional_usd_1h",
     "feature.liq_side_skew_1h",
     "feature.mins_to_funding",
+    "feature.oi_contract_change_1h",
     "feature.oi_velocity_pctrank",
     "feature.range_pct_1h",
     "feature.realized_vol_1h",
@@ -63,6 +64,7 @@
     "feature.taker_net_ratio_4h",
     "feature.top_global_long_skew",
     "feature.top_trader_long_ratio",
+    "feature.turnover_multiple_1h",
     "feature.vpin",
     "feature.vpin_regime",
     "feature.vwap_dist"
@@ -80,7 +82,7 @@
       "units": "signed_fraction"
     }
   },
-  "feature_count": 63,
+  "feature_count": 65,
   "recorded_only_features": [
     "feature.basis_change_1h",
     "feature.basis_pct",
