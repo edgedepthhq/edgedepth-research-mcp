@@ -8,7 +8,7 @@ Every result includes counts with denominators and a reproducibility key. Same k
 
 ## Why use EdgeDepth Research?
 
-- **Search recorded market microstructure:** query a closed, versioned feature registry covering order flow, price action, volatility, funding, open interest, positioning, candle formations, and liquidations.
+- **Search recorded market microstructure:** query a closed, versioned feature registry covering order flow, order-book depth and cost to trade, capture provenance, price action, volatility, funding, open interest, positioning, candle formations, liquidations and liquidation shelves.
 - **Keep the denominator:** every count reports the eligible population and exclusions behind it. Missing data is absent, never silently changed to zero.
 - **Measure outcomes without lookahead selection:** forward returns, MFE, and MAE are computed over all occurrences. Outcome fields cannot be used as filters.
 - **Compare matched and baseline populations:** deterministic cohort results put the matched distribution beside every other eligible predicate-false bucket.
