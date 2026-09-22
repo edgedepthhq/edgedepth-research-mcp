@@ -69,6 +69,7 @@
     "feature.mins_to_funding",
     "feature.oi_contract_change_1h",
     "feature.oi_conversion_1h",
+    "feature.oi_mcap_ratio",
     "feature.oi_velocity_pctrank",
     "feature.range_pct_1h",
     "feature.realized_vol_1h",
@@ -104,7 +105,7 @@
       "units": "signed_fraction"
     }
   },
-  "feature_count": 87,
+  "feature_count": 88,
   "recorded_only_features": [
     "feature.basis_change_1h",
     "feature.basis_pct",
