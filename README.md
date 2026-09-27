@@ -465,6 +465,20 @@ above 1% with at least 30 occurrences in either direction. If none qualifies,
 it shows the distribution and asks the reader to select a move. This display
 choice is not evidence of significance. All controls read completed result bytes.
 
+A result-at-a-glance section leads with a plain-language sentence using the
+exact selected outcome's count, observed denominator and rate. It reports
+missing outcomes, an exact reference comparison in percentage points when
+available, and why a comparison is unavailable otherwise. Touch outcomes keep
+the warning that both directions can occur and their ordering is unknown; this
+is descriptive evidence, not a success or confidence score. Without a stated
+outcome, the summary shows both closing directions and labels the view exploratory.
+
+Changing the horizon or move labels the summary as exploration. Return to stated
+outcome restores those two controls without a request. Stratified summaries name
+the viewed group. Both directions, exact reference counts and lift remain in an
+expandable breakdown; the histogram and path ladder remain visible. Wording is
+deterministic from completed counts, with no new model call or engine computation.
+
 The histogram retains all recorded buckets. Hover, focus or tap highlights one
 band in mint and keeps its exact counts/rates in the readout below the chart.
 The chart is one Tab stop; Left/Right step through bands and Home/End reach the

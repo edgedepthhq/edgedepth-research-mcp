@@ -82,6 +82,11 @@ describe('P4 recorded evidence and outcome defaults', () => {
     expect(ui.get('threshold').value).toBe('0.2')
     expect(ui.get('outcomes').textContent).toContain(['814 / 3,741 = 21.8%', '637 / 2,598 = 24.5%', '55 / 394 = 14.0%'][Number(index)])
     expect(ui.get('outcomes').children[0]!.textContent).toContain('Touched down 20%+ within 24h')
+    expect(ui.get('glanceAnswer').textContent).toContain(['814 of 3,741 recorded outcomes (21.8%)', '637 of 2,598 recorded outcomes (24.5%)', '55 of 394 recorded outcomes (14.0%)'][Number(index)])
+    expect(ui.get('glanceAnswer').textContent).toContain('reached a fall of at least 20% within 24h')
+    expect(ui.get('glanceComparison').textContent).toContain('SCAN_TIMEOUT')
+    expect(ui.get('glanceComparison').textContent).toContain('cannot tell whether')
+    expect(ui.get('glanceCaveat').textContent).toContain('do not show which came first')
     expect(ui.get('histogram').children).toHaveLength(28)
     const m = record.result.outcomes_summary.metrics.fwd_ret_24h
     m.buckets.forEach((b: any, i: number) => {
@@ -109,6 +114,79 @@ describe('P4 recorded evidence and outcome defaults', () => {
     expect(ui.get('threshold').value).toBe('0.3')
     expect(ui.get('outcomes').textContent).toContain('Exact outcome unavailable')
     expect(ui.get('counts').textContent).toContain('unavailable')
+  })
+})
+
+describe('result at a glance', () => {
+  it('distinguishes a viewed outcome from the stated one and restores the original measure', () => {
+    const ui = host(scanChartMeta(response(scan), timeout, measure))
+    expect(ui.get('glanceTitle').textContent).toContain('Stated outcome')
+    expect(ui.get('resetOutcome').hidden).toBe(true)
+    ui.get('horizon').value = '1h'; ui.get('horizon').onchange!()
+    expect(ui.get('glanceTitle').textContent).toContain('Exploring another outcome')
+    expect(ui.get('glanceAnswer').textContent).toContain('exact outcome unavailable')
+    expect(ui.get('glanceAnswer').textContent).not.toContain('40.0%')
+    expect(ui.get('resetOutcome').hidden).toBe(false)
+    expect(ui.get('question').textContent).toContain('within 24h')
+    ui.get('resetOutcome').onclick!()
+    expect(ui.get('horizon').value).toBe('24h')
+    expect(ui.get('threshold').value).toBe('0.2')
+    expect(ui.get('glanceAnswer').textContent).toContain('40 of 100 recorded outcomes (40.0%)')
+    expect(ui.get('resetOutcome').hidden).toBe(true)
+    ui.get('threshold').value = '0.3'; ui.get('threshold').onchange!()
+    expect(ui.get('glanceAnswer').textContent).toContain('exact outcome unavailable')
+    ui.get('resetOutcome').onclick!()
+    expect(ui.get('threshold').value).toBe('0.2')
+  })
+  it.each([[20, '20.0 percentage points higher'], [60, '20.0 percentage points lower'], [40, 'recorded rates are equal'], [0, '40.0 percentage points higher']])(
+    'compares against an exact reference count of %s without making an edge claim', (hits, phrase) => {
+      const reference = structuredClone(metric); reference.thresholds[1]!.count = Number(hits)
+      const ui = host(scanChartMeta(response(scan), response({ baseline: { metrics: { mae_24h: reference } } }), measure))
+      expect(ui.get('glanceComparison').textContent).toContain(`${hits} / 100 = ${Number(hits).toFixed(1)}%`)
+      expect(ui.get('glanceComparison').textContent).toContain(String(phrase))
+      expect(ui.get('glanceComparison').textContent).toContain('including matches')
+      expect(ui.get('glanceComparison').textContent).not.toMatch(/significant|advantage|Infinity|NaN/)
+    },
+  )
+  it('does not compare to an empty reference or round a small difference to equality', () => {
+    const reference = structuredClone(metric); reference.present = 0; reference.absent = 100
+    reference.thresholds[1]!.count = 0
+    const ui = host(scanChartMeta(response(scan), response({ baseline: { metrics: { mae_24h: reference } } }), measure))
+    expect(ui.get('glanceComparison').textContent).toContain('0 / 0 (no rate); 100 missing')
+    expect(ui.get('glanceComparison').textContent).toContain('No rate comparison is available')
+    expect(ui.get('glanceComparison').textContent).not.toContain('percentage points')
+    const data = structuredClone(scan), m = data.outcomes_summary.metrics.mae_24h
+    m.present = 10000; m.thresholds[1]!.count = 2
+    reference.present = 10000; reference.absent = 0; reference.thresholds[1]!.count = 1
+    ui.receive({ _meta: scanChartMeta(response(data), response({ baseline: { metrics: { mae_24h: reference } } }), measure) })
+    expect(ui.get('glanceAnswer').textContent).toContain('2 of 10,000 recorded outcomes (<0.1%)')
+    expect(ui.get('glanceComparison').textContent).toContain('1 / 10,000 = <0.1%')
+    expect(ui.get('glanceComparison').textContent).toContain('less than 0.1 percentage points higher')
+    expect(ui.get('glanceComparison').textContent).not.toContain('rates are equal')
+  })
+  it('keeps zero hits distinct from zero measured outcomes and warns about small denominators', () => {
+    const data = structuredClone(scan)
+    const m = data.outcomes_summary.metrics.mae_24h
+    m.thresholds[1]!.count = 0; m.present = 4; m.absent = 98
+    const ui = host(scanChartMeta(response(data), null, measure))
+    expect(ui.get('glanceAnswer').textContent).toContain('0 of 4 recorded outcomes (0.0%)')
+    expect(ui.get('glanceCaveat').textContent).toContain('98 outcomes missing')
+    expect(ui.get('glanceCaveat').textContent).toContain('Fewer than 30 measured outcomes')
+    m.present = 0; m.absent = 102
+    ui.receive({ _meta: scanChartMeta(response(data), null, measure) })
+    expect(ui.get('glanceAnswer').textContent).toContain('No recorded outcomes')
+    expect(ui.get('glanceAnswer').textContent).not.toContain('0.0%')
+    expect(ui.get('glanceCaveat').textContent).toContain('102 outcomes missing')
+  })
+  it('leads with both closing directions when no outcome was specified', () => {
+    const ui = host(scanChartMeta(response(scan), null))
+    expect(ui.get('glanceTitle').textContent).toContain('Exploring closing returns')
+    expect(ui.get('glanceAnswer').textContent).toContain('30 of 100 recorded outcomes (30.0%) closed at least 20% higher after 24h')
+    expect(ui.get('glanceAnswer').textContent).toContain('40 of 100 recorded outcomes (40.0%) closed at least 20% lower after 24h')
+    expect(ui.get('resetOutcome').hidden).toBe(true)
+    ui.get('threshold').value = ''; ui.get('threshold').onchange!()
+    expect(ui.get('glanceAnswer').textContent).toContain('Choose a move')
+    expect(ui.get('glanceComparison').textContent).toBe('')
   })
 })
 
@@ -218,12 +296,18 @@ it.each(['run_scan', 'run_cohort', 'run_stratified'])('%s attaches evidence with
     expect(texts(result).join('')).not.toContain('edgedepthEvidence')
     const ui = host(result._meta)
     expect(ui.get('title').textContent).toBe('Prepared study')
-    if (name === 'run_cohort') expect(ui.get('referenceNote').textContent).toContain('excludes matching minutes')
+    if (name === 'run_cohort') {
+      expect(ui.get('referenceNote').textContent).toContain('excludes matching minutes')
+      expect(ui.get('glanceComparison').textContent).toContain('where the condition was false')
+      expect(ui.get('glanceComparison').textContent).toContain('recorded rates are equal')
+    }
     if (name === 'run_stratified') {
       expect(ui.get('group').children).toHaveLength(3)
       ui.get('group').value = 'split_absent'; ui.get('group').onchange!()
       expect(ui.get('counts').textContent).toContain('unavailable')
       expect(ui.get('referenceNote').textContent).toContain('Unavailable for this scope')
+      expect(ui.get('glanceTitle').textContent).toContain('Split reading missing')
+      expect(ui.get('glanceComparison').textContent).toContain('no reference comparison is supplied')
     }
     const resource = await client.readResource({ uri: SCAN_CHART_URI })
     expect(resource.contents[0]!.text).toBe(SCAN_CHART_HTML)

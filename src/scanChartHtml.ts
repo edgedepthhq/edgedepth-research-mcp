@@ -29,7 +29,14 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
   .controls { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0 8px; }
   label { display: flex; align-items: center; gap: 6px; }
   select, button { font: inherit; color: inherit; background: var(--surface); }
-  select { border: 1px solid var(--line); padding: 5px; border-radius: 4px; max-width: 100%; }
+  select, #resetOutcome { border: 1px solid var(--line); padding: 5px; border-radius: 4px; max-width: 100%; }
+  #resetOutcome { cursor: pointer; }
+  #resetOutcome:hover { border-color: var(--accent); }
+  #glance { border-left: 3px solid var(--accent); background: light-dark(#edf7f2, #16281f); padding: 12px 14px; margin: 16px 0; }
+  #glanceTitle { margin: 0; font-size: 12px; color: var(--muted); font-weight: 500; }
+  #glanceAnswer { font-size: 17px; font-weight: 600; line-height: 1.5; }
+  #glanceComparison { font-size: 13px; }
+  #glanceCaveat { margin-bottom: 0; }
   option { color: var(--ink); background: var(--surface); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
@@ -76,15 +83,25 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
 <p id="stats" class="num"></p>
 <p id="status" role="status">Waiting for the study result.</p>
 <div id="app" hidden>
-  <p id="question"></p>
+  <p id="question" class="muted"></p>
+  <section id="glance" aria-labelledby="glanceTitle">
+    <h3 id="glanceTitle">Result at a glance</h3>
+    <p id="glanceAnswer" class="num" aria-live="polite" aria-atomic="true"></p>
+    <p id="glanceComparison" class="num"></p>
+    <p id="glanceCaveat" class="muted"></p>
+  </section>
   <div class="controls">
     <label id="groupLabel" hidden>Group <select id="group"></select></label>
     <label>Horizon <select id="horizon" aria-label="Outcome horizon"></select></label>
     <label>Move <select id="threshold" aria-label="Move size"></select></label>
+    <button id="resetOutcome" type="button" hidden>Return to stated outcome</button>
   </div>
   <p id="defaultNote" class="muted"></p>
-  <div id="outcomes" class="num"></div>
-  <p id="referenceNote" class="muted"></p>
+  <details id="outcomeDetails">
+    <summary>Both directions and reference counts</summary>
+    <div id="outcomes" class="num"></div>
+    <p id="referenceNote" class="muted"></p>
+  </details>
   <h3 id="distributionTitle">Closing-return distribution</h3>
   <p id="counts" class="muted num"></p>
   <div class="legend">
@@ -125,9 +142,12 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     window.parent.postMessage({ jsonrpc: "2.0", method: "ui/notifications/size-changed",
       params: { height: document.body.scrollHeight } }, "*");
   }
+  function percent(n, d) {
+    return n > 0 && n / d < 0.001 ? "<0.1%" : (n / d * 100).toFixed(1) + "%";
+  }
   function rate(n, d) {
     if (!count(n) || !count(d) || n > d) return "Exact count unavailable";
-    return fmt(n) + " / " + fmt(d) + (d ? " = " + (n > 0 && n / d < 0.001 ? "<0.1%" : (n / d * 100).toFixed(1) + "%") : " (no rate)");
+    return fmt(n) + " / " + fmt(d) + (d ? " = " + percent(n, d) : " (no rate)");
   }
   function rung(m, op, t) {
     return valid(m) && Array.isArray(m.thresholds) ? m.thresholds.find(function (r) {
@@ -185,15 +205,63 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     values.forEach(function (value) { tr.appendChild(el(header ? "th" : "td", value)); });
     table.appendChild(tr);
   }
+  function outcomeReading(g, h, t, direction, touch) {
+    var name = (touch ? direction === "up" ? "mfe_" : "mae_" : "fwd_ret_") + h;
+    var m = g.metrics[name], b = evidence.referenceMetrics[name], op = direction === "up" ? "gte" : "lte";
+    var threshold = direction === "up" ? t : -t;
+    return { m: m, b: b, r: rung(m, op, threshold), ref: rung(b, op, threshold) };
+  }
+  function atGlance(g, h, t) {
+    var choice = evidence.measure, touch = choice && choice.kind === "touch";
+    var changed = choice && (h !== choice.horizon || t !== choice.magnitude);
+    $("resetOutcome").hidden = !changed;
+    say("glanceTitle", "Result at a glance · " + (choice ? changed ? "Exploring another outcome" : "Stated outcome" : "Exploring closing returns")
+      + (evidence.groups.length > 1 ? " · " + g.label : ""));
+    say("glanceAnswer", "Choose a move to read its outcome counts. The full distribution is below.");
+    say("glanceComparison", ""); say("glanceCaveat", "No outcome was specified; this view is exploratory.");
+    if (!Number.isFinite(t)) return;
+    var directions = choice ? [choice.direction] : ["up", "down"];
+    var readings = directions.map(function (direction) { return outcomeReading(g, h, t, direction, touch); });
+    say("glanceAnswer", readings.map(function (v, i) {
+      var action = touch ? "reached a " + (directions[i] === "up" ? "rise" : "fall") + " of at least " + pct(t) + " within " + h
+        : "closed at least " + pct(t) + " " + (directions[i] === "up" ? "higher" : "lower") + " after " + h;
+      if (!v.r) return "Cannot measure whether outcomes " + action + ": exact outcome unavailable.";
+      if (!v.m.present) return "No recorded outcomes are available to measure this outcome (0 present).";
+      return fmt(v.r.count) + " of " + fmt(v.m.present) + " recorded outcomes (" + percent(v.r.count, v.m.present) + ") " + action + ".";
+    }).join(" "));
+    var v = readings[0];
+    if (evidence.referenceReason) {
+      say("glanceComparison", evidence.referenceKind === "none" ? "Groups are shown separately; no reference comparison is supplied."
+        : (evidence.referenceTimedOut ? "The reference timed out (" + evidence.referenceReason.split(":")[0] + ")."
+          : "Reference unavailable: " + evidence.referenceReason)
+          + " We cannot tell whether this occurred more often than "
+          + (evidence.referenceKind === "predicate_false" ? "when the condition was false." : "across all eligible minutes."));
+    } else if (!choice) {
+      say("glanceComparison", "No outcome was specified. Compare each closing direction with its reference in the breakdown below.");
+    } else {
+      var reference = evidence.referenceKind === "predicate_false" ? "Other eligible minutes where the condition was false"
+        : "All eligible minutes in the same scope, including matches";
+      var comparison = reference + ": " + (v.ref ? rate(v.ref.count, v.b.present) + "; " + fmt(v.b.absent) + " missing." : "exact outcome unavailable.");
+      if (v.r && v.ref && v.m.present > 0 && v.b.present > 0) {
+        var difference = (v.r.count / v.m.present - v.ref.count / v.b.present) * 100;
+        comparison += difference === 0 ? " The recorded rates are equal."
+          : " The study rate is " + (Math.abs(difference) < 0.1 ? "less than 0.1" : Math.abs(difference).toFixed(1))
+            + " percentage points " + (difference > 0 ? "higher." : "lower.");
+      } else comparison += " No rate comparison is available.";
+      say("glanceComparison", comparison);
+    }
+    say("glanceCaveat", (valid(v.m) ? fmt(v.m.absent) + " outcomes missing. "
+      + (v.m.present > 0 && v.m.present < 30 ? "Fewer than 30 measured outcomes. " : "") : "The selected metric is unavailable; no substitute was used. ")
+      + (touch ? "The same occurrence can touch both directions; these counts do not show which came first."
+        : "Overlapping observations are not independent trials."));
+  }
   function outcomes(g, h, t) {
     $("outcomes").replaceChildren();
     if (!Number.isFinite(t)) return;
     var choice = evidence.measure, touch = choice && choice.kind === "touch";
     var directions = choice && choice.direction === "down" ? ["down", "up"] : ["up", "down"];
     directions.forEach(function (direction, i) {
-      var name = (touch ? direction === "up" ? "mfe_" : "mae_" : "fwd_ret_") + h;
-      var m = g.metrics[name], b = evidence.referenceMetrics[name], op = direction === "up" ? "gte" : "lte";
-      var r = rung(m, op, direction === "up" ? t : -t), ref = rung(b, op, direction === "up" ? t : -t);
+      var v = outcomeReading(g, h, t, direction, touch), m = v.m, b = v.b, r = v.r, ref = v.ref;
       var card = el("div", undefined, "outcome" + (choice && i === 0 ? " chosen" : ""));
       card.appendChild(el("div", (touch ? "Touched " : "Closed ") + direction + " " + pct(t) + "+ " + (touch ? "within " : "after ") + h));
       card.appendChild(el("strong", r ? rate(r.count, m.present) : "Exact outcome unavailable"));
@@ -288,7 +356,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     if (!evidence) return;
     var g = group(), h = $("horizon").value, t = $("threshold").value === "" ? NaN : Number($("threshold").value);
     say("matchedLegend", g.label); say("referenceLabel", evidence.referenceLabel);
-    outcomes(g, h, t); distribution(g, h); ladder(g, h, t);
+    atGlance(g, h, t); outcomes(g, h, t); distribution(g, h); ladder(g, h, t);
     say("referenceNote", evidence.referenceReason ? (evidence.referenceTimedOut ? "Reference timed out (" + evidence.referenceReason.split(":")[0] + "). The study is still valid; retry it later for a reference. No lift is shown."
         : "Reference: " + evidence.referenceReason + " No lift is shown.")
       : evidence.referenceKind === "predicate_false" ? "Reference: other eligible minutes where the condition was false. It excludes matching minutes."
@@ -345,6 +413,10 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
   $("group").onchange = function () { thresholds(true); render(); };
   $("horizon").onchange = function () { thresholds(!evidence.measure); render(); };
   $("threshold").onchange = render;
+  $("resetOutcome").onclick = function () {
+    if (!evidence || !evidence.measure) return;
+    $("horizon").value = evidence.measure.horizon; thresholds(true); render(); $("horizon").focus();
+  };
   document.querySelectorAll("details").forEach(function (d) { d.addEventListener("toggle", resize); });
   window.addEventListener("message", function (event) {
     if (event.source !== window.parent || !obj(event.data) || event.data.jsonrpc !== "2.0") return;
