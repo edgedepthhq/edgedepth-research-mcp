@@ -43,13 +43,16 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
   .swatch.ref { background: transparent; border: 2px solid var(--reference); }
   #histogram { display: grid; height: 155px; gap: 2px; border-bottom: 1px solid var(--line); margin-top: 12px; }
   .bin { position: relative; border: 0; padding: 0; cursor: pointer; min-width: 0; background: transparent; }
-  .bin:hover, .bin:focus { background: light-dark(#eaf4f0, #25352e); }
+  .bin[aria-pressed="true"] { background: light-dark(#eaf4f0, #203c31); box-shadow: inset 0 -2px var(--accent); }
+  .bin:focus-visible { outline-offset: -2px; }
+  .bin[aria-pressed="true"] .bar:not(.ref) { background: light-dark(#095a43, #96f0d1); }
+  .bin[aria-pressed="true"] .bar.ref { border-color: var(--ink); }
   .bin.zero { border-left: 1px dashed var(--line); }
   .bar { position: absolute; bottom: 0; left: 18%; width: 64%; background: var(--accent); pointer-events: none; }
   .bar.ref { left: 0; width: 100%; background: transparent; border: 1px solid var(--reference); }
   .axis { position: relative; height: 20px; color: var(--muted); font-size: 12px; }
   .axis span { position: absolute; transform: translateX(-50%); }
-  #binReading { min-height: 3em; font-size: 12px; }
+  #binReading { min-height: 4.5em; font-size: 12px; padding: 8px 10px; border-left: 2px solid var(--accent); background: light-dark(#eaf4f0, #16281f); }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   th, td { text-align: left; padding: 7px 5px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { font-weight: 600; }
@@ -90,7 +93,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
   </div>
   <div id="histogram" role="group" aria-label="Recorded return buckets"></div>
   <div class="axis" id="axis" aria-label="Closing return band boundaries"></div>
-  <p id="binReading" aria-live="polite"></p>
+  <p id="binReading" aria-live="polite" aria-atomic="true"></p>
   <p id="chartNote" class="muted"></p>
   <details><summary>Every return bucket, with exact counts</summary><table id="buckets"></table></details>
   <h3 id="ladderTitle">How far it ran / how far it fell</h3>
@@ -216,32 +219,46 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     say("counts", valid(m) ? fmt(m.present) + " closing outcomes; " + fmt(m.absent) + " missing."
       + (aligned ? " Reference: " + fmt(b.present) + " present; " + fmt(b.absent) + " missing." : "")
       : "Closing outcomes unavailable at this horizon.");
-    say("binReading", "");
+    say("binReading", ""); $("binReading").hidden = !a;
     if (!a) { say("chartNote", "Complete recorded distribution unavailable. No buckets have been estimated."); return; }
     var max = Math.max(0.01, ...a.map(function (x) { return m.present ? x.count / m.present : 0; }),
       ...(aligned ? base.map(function (x) { return b.present ? x.count / b.present : 0; }) : []));
     $("histogram").style.gridTemplateColumns = "repeat(" + a.length + ", minmax(0, 1fr))";
     tableRow($("buckets"), ["Return band", g.label].concat(aligned ? [evidence.referenceLabel] : []), true);
     var largest = a.reduce(function (best, x, i) { return x.count > a[best].count ? i : best; }, 0);
+    function selectBin(index) {
+      Array.from($("histogram").children).forEach(function (bin, i) {
+        bin.setAttribute("aria-pressed", String(i === index));
+        bin.tabIndex = i === index ? 0 : -1;
+      });
+      say("binReading", $("histogram").children[index].getAttribute("aria-label"));
+    }
     a.forEach(function (x, i) {
       if ([-0.5, -0.05, 0, 0.05, 0.5].includes(x.lo)) {
         var tick = el("span", pct(x.lo)); tick.style.left = (i / a.length * 100) + "%"; $("axis").appendChild(tick);
       }
-      var text = band(x) + ": " + rate(x.count, m.present) + (aligned ? "; reference " + rate(base[i].count, b.present) : "");
+      var text = band(x) + ": " + g.label + " " + rate(x.count, m.present) + (aligned ? "; reference " + rate(base[i].count, b.present) : "");
       var bin = el("button", undefined, "bin" + (x.lo === 0 ? " zero" : ""));
-      bin.type = "button"; bin.title = text; bin.setAttribute("aria-label", text);
+      bin.type = "button"; bin.setAttribute("aria-label", text);
       if (aligned && base[i].count > 0) {
         var ref = el("span", undefined, "bar ref"); ref.style.height = (base[i].count / b.present / max * 100) + "%"; bin.appendChild(ref);
       }
       if (x.count > 0) {
         var bar = el("span", undefined, "bar"); bar.style.height = (x.count / m.present / max * 100) + "%"; bin.appendChild(bar);
       }
-      bin.onfocus = bin.onmouseenter = bin.onclick = function () { say("binReading", text); };
-      if (i === largest) say("binReading", text);
+      bin.onfocus = bin.onmouseenter = bin.onclick = function () { selectBin(i); };
+      bin.onkeydown = function (event) {
+        var index = event.key === "ArrowLeft" ? Math.max(0, i - 1)
+          : event.key === "ArrowRight" ? Math.min(a.length - 1, i + 1)
+          : event.key === "Home" ? 0 : event.key === "End" ? a.length - 1 : null;
+        if (index === null) return;
+        event.preventDefault(); $("histogram").children[index].focus();
+      };
       $("histogram").appendChild(bin);
       tableRow($("buckets"), [band(x), rate(x.count, m.present)].concat(aligned ? [rate(base[i].count, b.present)] : []));
     });
-    say("chartNote", "All " + a.length + " buckets, including empty bands and open tails. Height = share of outcomes; widths are not to scale. Focus or tap for counts."
+    selectBin(largest);
+    say("chartNote", "All " + a.length + " buckets, including empty bands and open tails. Height = share of outcomes; widths are not to scale. Hover or tap for counts; use arrow keys when focused."
       + (base && !aligned ? " Reference bucket edges differ; overlay unavailable." : !base && Object.keys(evidence.referenceMetrics).length ? " Reference distribution unavailable at this horizon." : ""));
   }
   function ladder(g, h, t) {

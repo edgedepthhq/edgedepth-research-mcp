@@ -29,13 +29,17 @@ class Element {
   style: Record<string, string> = {}
   attrs: Record<string, string> = {}
   value = ''; hidden = false; className = ''; ownText = ''; title = ''; type = ''
-  onclick?: () => void; onchange?: () => void; onfocus?: () => void
+  tabIndex = -1
+  onclick?: () => void; onchange?: () => void; onfocus?: () => void; onmouseenter?: () => void
+  onkeydown?: (event: { key: string; preventDefault: () => void }) => void
   constructor(public tagName: string) {}
   get textContent(): string { return this.ownText + this.children.map(c => c.textContent).join(' ') }
   set textContent(value: string) { this.ownText = value; this.children = [] }
   appendChild(child: Element) { this.children.push(child); return child }
   replaceChildren() { this.children = []; this.ownText = '' }
   setAttribute(key: string, value: string) { this.attrs[key] = value }
+  getAttribute(key: string) { return this.attrs[key] }
+  focus() { this.onfocus?.() }
   addEventListener() {}
 }
 function host(metadata?: unknown, openai = false) {
@@ -125,6 +129,33 @@ describe('reference, missingness and host delivery', () => {
     expect(ui.get('outcomes').textContent).toContain('0 / 0 (no rate)')
     expect(ui.get('outcomes').textContent).not.toContain('NaN')
     expect(ui.get('counts').textContent).toContain('102 missing')
+  })
+  it('keeps hover, tap and keyboard selection on the same exact bucket without trapping Tab', () => {
+    const ui = host(scanChartMeta(response(scan), response({ baseline: { metrics: { fwd_ret_24h: metric } } })))
+    const bins = ui.get('histogram').children
+    const selected = (index: number) => {
+      expect(bins.filter(b => b.attrs['aria-pressed'] === 'true')).toEqual([bins[index]])
+      expect(bins.filter(b => b.tabIndex === 0)).toEqual([bins[index]])
+      expect(ui.get('binReading').textContent).toBe(bins[index]!.attrs['aria-label'])
+    }
+    selected(1)
+    bins[0]!.onmouseenter!(); selected(0)
+    expect(ui.get('binReading').textContent).toContain('40 / 100 = 40.0%')
+    expect(ui.get('binReading').textContent).toContain('reference 40 / 100 = 40.0%')
+    bins[1]!.onclick!(); selected(1)
+    const press = (index: number, key: string, next: number) => {
+      const preventDefault = vi.fn()
+      bins[index]!.onkeydown!({ key, preventDefault })
+      expect(preventDefault).toHaveBeenCalledTimes(key === 'Tab' ? 0 : 1)
+      selected(next)
+    }
+    press(1, 'Home', 0); press(0, 'ArrowLeft', 0)
+    press(0, 'ArrowRight', 1); press(1, 'ArrowRight', 1)
+    press(1, 'ArrowLeft', 0); press(0, 'End', 1); press(1, 'Tab', 1)
+    ui.get('horizon').value = '1h'; ui.get('horizon').onchange!()
+    expect(ui.get('binReading').hidden).toBe(true)
+    expect(ui.get('binReading').textContent).toBe('')
+    expect(ui.get('histogram').children).toHaveLength(0)
   })
   it('refuses a malformed distribution and a mismatched overlay', () => {
     const bad = structuredClone(scan); bad.outcomes_summary.metrics.fwd_ret_24h.buckets[0]!.count++

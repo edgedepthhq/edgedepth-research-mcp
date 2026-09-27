@@ -465,8 +465,11 @@ above 1% with at least 30 occurrences in either direction. If none qualifies,
 it shows the distribution and asks the reader to select a move. This display
 choice is not evidence of significance. All controls read completed result bytes.
 
-The histogram retains all recorded buckets, with exact counts/rates on focus or
-tap and in an expandable table. An aligned reference is overlaid; the compact
+The histogram retains all recorded buckets. Hover, focus or tap highlights one
+band in mint and keeps its exact counts/rates in the readout below the chart.
+The chart is one Tab stop; Left/Right step through bands and Home/End reach the
+tails. Selection also works for empty bands and makes no request. All counts
+remain in the expandable table. An aligned reference is overlaid; the compact
 MFE/MAE ladder uses the same horizon. Missing references show their reason; lift
 is shown only with both exact rates and a nonzero reference rate. Cohorts label
 the predicate-false comparison accurately; stratified views retain all three
