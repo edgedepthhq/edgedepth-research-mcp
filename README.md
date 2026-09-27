@@ -375,9 +375,9 @@ not point-in-time membership, and history does not prove feature completeness.
 `run_scan.measure` now adds `selected_outcome.v1` alongside canonical bytes,
 including the exact selected full-population count, opposite direction and
 unconditional reference. Zero counts remain visible, zero denominators have no
-rate, and unavailable metrics or rungs are never substituted. The inline view
-leads with that same reading; its secondary chart remains explicitly closing-
-return exploration. Existing reports keep their fixed, stated overview.
+rate, and unavailable metrics or rungs are never substituted. The inline view leads with that same reading and opens its horizon and move
+controls on the exact measurement. Its histogram always labels closing returns;
+the path ladder separately labels MFE/MAE touches. Existing reports keep their fixed, stated overview.
 
 Similarity is exploratory proximity on stated dimensions. Monitoring requires
 exact satisfaction of a versioned supported predicate, not identical historical
@@ -450,3 +450,29 @@ Delivery order is backend, web API/validator, then MCP. No source extraction,
 dataset promotion, capture change or production release occurred. Local BTC
 September 12 proof and continuation owner are in the task hub's canonical
 `tasks/research-cross-venue-replication.md` and `outputs/cross-venue-20260915/`.
+
+
+### Study widgets (local, hosted release pending)
+
+`run_scan`, `run_cohort` and `run_stratified` share a network-free widget. Carry
+`prepare_study.summary` verbatim in optional `study_summary`, outside the exact
+query document. Older callers receive a faithful clause-and-scope heading. The
+headline retains the stated outcome, occurrence count and symbols scanned.
+
+Optional `measure` sets kind, direction, magnitude and horizon. Without it, the
+widget starts at 24h when available and chooses the largest closing-return rung
+above 1% with at least 30 occurrences in either direction. If none qualifies,
+it shows the distribution and asks the reader to select a move. This display
+choice is not evidence of significance. All controls read completed result bytes.
+
+The histogram retains all recorded buckets, with exact counts/rates on focus or
+tap and in an expandable table. An aligned reference is overlaid; the compact
+MFE/MAE ladder uses the same horizon. Missing references show their reason; lift
+is shown only with both exact rates and a nonzero reference rate. Cohorts label
+the predicate-false comparison accurately; stratified views retain all three
+groups, including missing split readings, without inventing a reference.
+
+Rejected documents display their HTTP state, codes and messages separately from
+hosts that omit chart evidence. No engine, research_query.v2, canonical bytes,
+projection, authentication or billing behavior changes. Release and actual
+Claude-host acceptance remain pending James's go.

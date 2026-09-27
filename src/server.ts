@@ -53,7 +53,7 @@ const INSTRUCTIONS =
   'Scan-family results come back as a stated projection: rows are thinned examples and every ' +
   'removal is listed, so read counts and rates from counts and outcomes_summary, raise rows for ' +
   'more examples, and pass full_counts only when verbatim canonical bytes are required. ' +
-  'Carry prepare_study.outcome into run_scan.measure and your reading of the result; if its exact metric/rung is missing from the projection, fetch full_outcomes on the unchanged cached document. Never substitute the default horizon or a nearby threshold. ' +
+  'Carry prepare_study.summary verbatim into study_summary on the exact scan-family call, outside its document. Carry prepare_study.outcome into run_scan.measure and your reading of the result; if its exact metric/rung is missing from the projection, fetch full_outcomes on the unchanged cached document. Never substitute the default horizon or a nearby threshold. ' +
   'outcomes_summary.metrics[].rungs already states, per selected threshold, the matched count and ' +
   'rate, the unconditional count and rate over the same symbols and window, and their ratio as ' +
   'lift: quote those numbers rather than recomputing them, and quote the count beside any rate. A ' +

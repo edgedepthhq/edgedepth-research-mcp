@@ -127,7 +127,7 @@ describe('human reading pages', () => {
   })
 
   it('matches the slug transform edgedepth-web actually applies', () => {
-    const webPath = join(process.cwd(), '..', 'edgedepth-web', 'src', 'lib', 'researchReadingPages.ts')
+    const webPath = join(process.cwd(), '..', 'edgedepth-web', 'src', 'lib', 'researchFeatureCatalog.ts')
     let web: string
     try {
       web = readFileSync(webPath, 'utf8')

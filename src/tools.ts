@@ -258,11 +258,15 @@ const WORKBENCH_MEASURE_INPUT = z.object({
   horizon: z.enum(OUTCOME_HORIZONS),
 }).strict().refine((value) => value.direction !== 'down' || value.magnitude <= OUTCOME_LADDER_DOWN_MAX)
   .optional().describe(
-    'Optional agreed outcome for the workbench link only: kind close means finished, touch means ' +
+    'Optional agreed outcome for the workbench link and widget: kind close means finished, touch means ' +
     "reached; magnitude is a fraction (0.02 means 2%). Preserve the user's exact choice, including " +
     'the original outcome_first target. This display choice never enters the query, changes ' +
-    'the cache key, requests another computation, or changes the inline closing-return chart.',
+    'the cache key or requests another computation. The widget opens on this exact outcome.',
   )
+
+const STUDY_SUMMARY_INPUT = z.string().min(1).max(8000).optional().describe(
+  'Carry prepare_study.summary verbatim for this exact document. Display-only proposal text, never a query field or authorization. Omit if no matching proposal summary exists.',
+)
 
 /** Render authenticated web replay handoffs from the additive v4
  * representative block without changing the canonical body block. */
@@ -996,11 +1000,12 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               'returns a projection that only ever REMOVES, and states each removal.',
           ),
         measure: WORKBENCH_MEASURE_INPUT,
+        study_summary: STUDY_SUMMARY_INPUT,
         ...ROWS_INPUT,
       },
       annotations: METERED_COMPUTE,
     },
-    async ({ document, if_none_match, full_counts, rows, full_rows, full_outcomes, measure }) => {
+    async ({ document, if_none_match, full_counts, rows, full_rows, full_outcomes, measure, study_summary }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const lean = leanOptions({ rows, full_rows, full_outcomes })
@@ -1047,7 +1052,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       if (selected) result.content.splice(1, 0, text(JSON.stringify({ selected_outcome: selected })))
       const handoffs = replayHandoffs(res, measure)
       if (handoffs) result.content.push(handoffs)
-      const chart = scanChartMeta(res, baseline, measure)
+      const chart = scanChartMeta(res, baseline, measure, document, study_summary)
       if (chart) result._meta = chart
       return withRepair(result, res, ctx, key)
     },
@@ -1340,6 +1345,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     'run_cohort',
     {
       title: 'Run a cohort comparison study (record_occurrences)',
+      _meta: { ui: { resourceUri: SCAN_CHART_URI }, 'openai/outputTemplate': SCAN_CHART_URI },
       description:
         'Use this when an exact where-only research_query.v2 document has been confirmed and the ' +
         'user explicitly wants the matched occurrence distribution beside every other eligible ' +
@@ -1370,11 +1376,13 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
             "True returns the engine's verbatim canonical bytes with no projection at all. " +
               'Default returns a projection that only ever REMOVES, and states each removal.',
           ),
+        measure: WORKBENCH_MEASURE_INPUT,
+        study_summary: STUDY_SUMMARY_INPUT,
         ...ROWS_INPUT,
       },
       annotations: METERED_COMPUTE,
     },
-    async ({ document, if_none_match, full_counts, rows, full_rows, full_outcomes }) => {
+    async ({ document, if_none_match, full_counts, rows, full_rows, full_outcomes, measure, study_summary }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const lean = leanOptions({ rows, full_rows, full_outcomes })
@@ -1394,8 +1402,10 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
           : (unscopeEtag(if_none_match, projectionTag(lean)) ?? if_none_match),
       })
       const on304 = 'Re-run the document without If-None-Match to fetch the cached cohort bytes (still free).'
+      const result = full_counts ? passthrough(res, on304) : leanPassthrough(res, lean, on304)
+      result._meta = scanChartMeta(res, null, measure, document, study_summary)
       return withRepair(
-        full_counts ? passthrough(res, on304) : leanPassthrough(res, lean, on304),
+        result,
         res,
         ctx,
         key,
@@ -1450,6 +1460,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     'run_stratified',
     {
       title: 'Split one population three ways at its own anchors',
+      _meta: { ui: { resourceUri: SCAN_CHART_URI }, 'openai/outputTemplate': SCAN_CHART_URI },
       description:
         'Use this when the user wants to test whether the outcome distribution of one confirmed ' +
         'population changes when its existing anchors are partitioned by one setup-time condition. ' +
@@ -1460,6 +1471,8 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         ' A fresh stratified computation can consume research allowance units; cache hits, reruns, ' +
         'and 304 revalidations are free.',
       inputSchema: {
+        measure: WORKBENCH_MEASURE_INPUT,
+        study_summary: STUDY_SUMMARY_INPUT,
         document: z
           .record(z.any())
           .describe(
@@ -1478,7 +1491,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       },
       annotations: METERED_COMPUTE,
     },
-    async ({ document, if_none_match }) => {
+    async ({ document, if_none_match, measure, study_summary }) => {
       const key = ctx.getKey()
       if (!key) return noKey()
       const res = await apiRequest(ctx.apiBase, {
@@ -1488,11 +1501,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         body: document,
         ifNoneMatch: if_none_match,
       })
+      const result = passthrough(res,
+        'Re-run the wrapper without If-None-Match to fetch the cached stratified bytes (still free).')
+      result._meta = scanChartMeta(res, null, measure, document, study_summary)
       return withRepair(
-        passthrough(
-          res,
-          'Re-run the wrapper without If-None-Match to fetch the cached stratified bytes (still free).',
-        ),
+        result,
         res,
         ctx,
         key,

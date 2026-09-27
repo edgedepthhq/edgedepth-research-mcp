@@ -85,6 +85,7 @@ describe('tool schema', () => {
       'if_none_match',
       'measure',
       'rows',
+      'study_summary',
     ])
   })
 
@@ -104,9 +105,9 @@ describe('tool schema', () => {
       interpret_prose: ['language', 'time_zone'],
       resolve_scope: ['sector', 'symbol'],
       prepare_study: ['outcome', 'scope', 'setup', 'source'],
-      run_scan: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'measure', 'rows'],
-      run_cohort: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'rows'],
-      run_stratified: ['document', 'if_none_match'],
+      run_scan: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'measure', 'rows', 'study_summary'],
+      run_cohort: ['document', 'full_counts', 'full_outcomes', 'full_rows', 'if_none_match', 'measure', 'rows', 'study_summary'],
+      run_stratified: ['document', 'if_none_match', 'measure', 'study_summary'],
       run_trade_test: ['document', 'full_trades', 'if_none_match'],
       next_page: [
         'cursor',

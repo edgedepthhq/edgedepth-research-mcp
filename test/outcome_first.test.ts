@@ -507,6 +507,7 @@ describe('the other tools are unchanged by the door', () => {
       'if_none_match',
       'measure',
       'rows',
+      'study_summary',
     ])
     const baseRate = tools.find((t) => t.name === 'base_rate')!
     expect(Object.keys((baseRate.inputSchema.properties ?? {}) as Record<string, unknown>).sort()).toEqual(

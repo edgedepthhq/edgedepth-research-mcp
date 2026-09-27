@@ -290,7 +290,7 @@ describe('prompts and resources (the examples an agent can reach)', () => {
       'edgedepth://research/grammar',
       'edgedepth://research/outcome-first',
       'edgedepth://research/screenshots',
-      'ui://edgedepth/scan-evidence-v1.html',
+      'ui://edgedepth/scan-evidence-v2.html',
     ])
     const read = await client.readResource({ uri: 'edgedepth://research/grammar' })
     expect((read.contents[0] as { text: string }).text).toBe(registryBytes)

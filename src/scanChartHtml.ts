@@ -1,598 +1,351 @@
-/** Self-contained, network-free display. Tool payloads are untrusted data:
- * textContent only; no HTML interpolation, external URLs or executable inputs. */
+/** Network-free display. Tool data is untrusted: textContent only, never HTML,
+ * URLs, executable inputs, storage, or follow-up research requests. */
 export const SCAN_CHART_HTML = String.raw`<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <style>
-      :root {
-        color-scheme: light dark;
-        font:
-          14px/1.5 system-ui,
-          sans-serif;
-        --ink: light-dark(#152630, #e6edf3);
-        --surface: light-dark(#fff, #15202a);
-        color: var(--ink);
-        background: var(--surface);
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root {
+    color-scheme: light dark;
+    font: 14px/1.5 system-ui, sans-serif;
+    --ink: light-dark(#152630, #ecf0ef);
+    --muted: light-dark(#536471, #a0ada8);
+    --surface: light-dark(#fff, #11161d);
+    --line: light-dark(#ced6d2, #66736e);
+    --accent: light-dark(#15765b, #4ddbac);
+    --reference: light-dark(#566974, #9daaa5);
+    color: var(--ink); background: var(--surface);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px; }
+  h2 { font-size: 19px; line-height: 1.4; margin: 0 0 8px; font-weight: 650; }
+  h3 { font-size: 15px; margin: 20px 0 8px; }
+  p { margin: 8px 0; }
+  .muted, small { color: var(--muted); font-size: 12px; }
+  .num, table, #binReading { font-variant-numeric: tabular-nums; }
+  #stats { font-weight: 650; }
+  #scope, #status, #title { overflow-wrap: anywhere; }
+  .controls { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0 8px; }
+  label { display: flex; align-items: center; gap: 6px; }
+  select, button { font: inherit; color: inherit; background: var(--surface); }
+  select { border: 1px solid var(--line); padding: 5px; border-radius: 4px; max-width: 100%; }
+  option { color: var(--ink); background: var(--surface); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
+  .outcome { border-top: 2px solid var(--line); padding-top: 8px; min-width: 0; }
+  .outcome.chosen { border-color: var(--accent); }
+  .outcome strong { display: block; font-size: 18px; margin: 4px 0; }
+  .outcome small { display: block; }
+  #referenceNote { border-left: 2px solid var(--line); padding-left: 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; }
+  .swatch { display: inline-block; width: 11px; height: 11px; background: var(--accent); margin-right: 5px; }
+  .swatch.ref { background: transparent; border: 2px solid var(--reference); }
+  #histogram { display: grid; height: 155px; gap: 2px; border-bottom: 1px solid var(--line); margin-top: 12px; }
+  .bin { position: relative; border: 0; padding: 0; cursor: pointer; min-width: 0; background: transparent; }
+  .bin:hover, .bin:focus { background: light-dark(#eaf4f0, #25352e); }
+  .bin.zero { border-left: 1px dashed var(--line); }
+  .bar { position: absolute; bottom: 0; left: 18%; width: 64%; background: var(--accent); pointer-events: none; }
+  .bar.ref { left: 0; width: 100%; background: transparent; border: 1px solid var(--reference); }
+  .axis { position: relative; height: 20px; color: var(--muted); font-size: 12px; }
+  .axis span { position: absolute; transform: translateX(-50%); }
+  #binReading { min-height: 3em; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 7px 5px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; }
+  tr.selected { background: light-dark(#edf7f2, #1b3028); }
+  summary { cursor: pointer; font-size: 12px; }
+  details { margin-top: 12px; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 480px) {
+    body { padding: 12px; }
+    h2 { font-size: 17px; }
+    #outcomes { grid-template-columns: 1fr; gap: 10px; }
+    #histogram { gap: 1px; }
+    th, td { padding: 6px 3px; }
+  }
+</style>
+</head>
+<body>
+<h2 id="title">Study result</h2>
+<p id="scope" class="muted"></p>
+<p id="stats" class="num"></p>
+<p id="status" role="status">Waiting for the study result.</p>
+<div id="app" hidden>
+  <p id="question"></p>
+  <div class="controls">
+    <label id="groupLabel" hidden>Group <select id="group"></select></label>
+    <label>Horizon <select id="horizon" aria-label="Outcome horizon"></select></label>
+    <label>Move <select id="threshold" aria-label="Move size"></select></label>
+  </div>
+  <p id="defaultNote" class="muted"></p>
+  <div id="outcomes" class="num"></div>
+  <p id="referenceNote" class="muted"></p>
+  <h3 id="distributionTitle">Closing-return distribution</h3>
+  <p id="counts" class="muted num"></p>
+  <div class="legend">
+    <span><i class="swatch"></i><span id="matchedLegend">Matching occurrences</span></span>
+    <span id="referenceLegend"><i class="swatch ref"></i><span id="referenceLabel"></span></span>
+  </div>
+  <div id="histogram" role="group" aria-label="Recorded return buckets"></div>
+  <div class="axis" id="axis" aria-label="Closing return band boundaries"></div>
+  <p id="binReading" aria-live="polite"></p>
+  <p id="chartNote" class="muted"></p>
+  <details><summary>Every return bucket, with exact counts</summary><table id="buckets"></table></details>
+  <h3 id="ladderTitle">How far it ran / how far it fell</h3>
+  <table id="ladder"></table>
+  <p id="pathCounts" class="muted num"></p>
+  <p id="limitations" class="muted"></p>
+  <details><summary>Study definition, coverage and evidence</summary>
+    <p id="coverage" class="muted num"></p><p id="meter" class="muted"></p><pre id="details"></pre>
+  </details>
+</div>
+<script>
+(function () {
+  "use strict";
+  var evidence = null, pending = new Map(), serial = 0;
+  var $ = function (id) { return document.getElementById(id); };
+  var obj = function (v) { return v && typeof v === "object" && !Array.isArray(v); };
+  var count = function (v) { return Number.isSafeInteger(v) && v >= 0; };
+  var fmt = function (v) { return count(v) ? v.toLocaleString("en-US") : "unknown"; };
+  var pct = function (v) { return Number((v * 100).toFixed(8)) + "%"; };
+  var valid = function (m) { return obj(m) && count(m.present) && count(m.absent); };
+  function say(id, text) { $(id).textContent = text; }
+  function el(tag, text, className) {
+    var e = document.createElement(tag);
+    if (text !== undefined) e.textContent = text;
+    if (className) e.className = className;
+    return e;
+  }
+  function resize() {
+    window.parent.postMessage({ jsonrpc: "2.0", method: "ui/notifications/size-changed",
+      params: { height: document.body.scrollHeight } }, "*");
+  }
+  function rate(n, d) {
+    if (!count(n) || !count(d) || n > d) return "Exact count unavailable";
+    return fmt(n) + " / " + fmt(d) + (d ? " = " + (n > 0 && n / d < 0.001 ? "<0.1%" : (n / d * 100).toFixed(1) + "%") : " (no rate)");
+  }
+  function rung(m, op, t) {
+    return valid(m) && Array.isArray(m.thresholds) ? m.thresholds.find(function (r) {
+      return obj(r) && r.op === op && r.threshold === t && count(r.count) && r.count <= m.present;
+    }) : null;
+  }
+  function bins(m) {
+    if (!valid(m) || !Array.isArray(m.buckets) || !m.buckets.length) return null;
+    var total = 0;
+    for (var b of m.buckets) {
+      if (!obj(b) || !count(b.count) || !(b.lo === null || Number.isFinite(b.lo)) ||
+          !(b.hi === null || Number.isFinite(b.hi)) || (b.lo !== null && b.hi !== null && b.lo >= b.hi)) return null;
+      total += b.count;
+    }
+    return total === m.present ? m.buckets : null;
+  }
+  function band(b) {
+    var negative = b.hi !== null && b.hi <= 0;
+    return (negative ? "(" : "[") + (b.lo === null ? "-∞" : pct(b.lo)) + ", " +
+      (b.hi === null ? "+∞" : pct(b.hi)) + (negative ? "]" : ")");
+  }
+  function options(id, entries, value) {
+    $(id).replaceChildren();
+    entries.forEach(function (entry) {
+      var option = el("option", entry[1]); option.value = entry[0]; $(id).appendChild(option);
+    });
+    $(id).value = value;
+  }
+  function group() { return evidence.groups.find(function (g) { return g.id === $("group").value; }) || evidence.groups[0]; }
+  function thresholds(reset) {
+    var m = group().metrics["fwd_ret_" + $("horizon").value], choice = evidence.measure;
+    var values = new Set();
+    ["fwd_ret_", "mfe_", "mae_"].forEach(function (prefix) {
+      var metric = group().metrics[prefix + $("horizon").value];
+      if (valid(metric) && Array.isArray(metric.thresholds)) metric.thresholds.forEach(function (r) {
+        if (obj(r) && Number.isFinite(r.threshold) && r.threshold !== 0) values.add(Math.abs(r.threshold));
+      });
+    });
+    if (choice) values.add(choice.magnitude);
+    var supported = valid(m) && Array.isArray(m.thresholds) ? m.thresholds.filter(function (r) {
+      return obj(r) && count(r.count) && r.count >= 30 && r.count <= m.present &&
+        ((r.op === "gte" && r.threshold > 0.01) || (r.op === "lte" && r.threshold < -0.01));
+    }).map(function (r) { return Math.abs(r.threshold); }) : [];
+    var target = !reset && $("threshold").value ? $("threshold").value : choice ? String(choice.magnitude)
+      : supported.length ? String(Math.max(...supported)) : "";
+    var entries = Array.from(values).sort(function (a, b) { return a - b; }).map(function (t) { return [String(t), pct(t)]; });
+    if (!target) entries.unshift(["", "Choose a move"]);
+    options("threshold", entries, target);
+    say("defaultNote", choice ? "Display controls use completed results."
+      : supported.length ? "Opens on the largest closing move above 1% with at least 30 occurrences in either direction. Display only."
+      : "No closing move above 1% has 30 occurrences at this horizon. Choose a move to inspect its counts.");
+  }
+  function tableRow(table, values, header, selected) {
+    var tr = el("tr"); if (selected) tr.className = "selected";
+    values.forEach(function (value) { tr.appendChild(el(header ? "th" : "td", value)); });
+    table.appendChild(tr);
+  }
+  function outcomes(g, h, t) {
+    $("outcomes").replaceChildren();
+    if (!Number.isFinite(t)) return;
+    var choice = evidence.measure, touch = choice && choice.kind === "touch";
+    var directions = choice && choice.direction === "down" ? ["down", "up"] : ["up", "down"];
+    directions.forEach(function (direction, i) {
+      var name = (touch ? direction === "up" ? "mfe_" : "mae_" : "fwd_ret_") + h;
+      var m = g.metrics[name], b = evidence.referenceMetrics[name], op = direction === "up" ? "gte" : "lte";
+      var r = rung(m, op, direction === "up" ? t : -t), ref = rung(b, op, direction === "up" ? t : -t);
+      var card = el("div", undefined, "outcome" + (choice && i === 0 ? " chosen" : ""));
+      card.appendChild(el("div", (touch ? "Touched " : "Closed ") + direction + " " + pct(t) + "+ " + (touch ? "within " : "after ") + h));
+      card.appendChild(el("strong", r ? rate(r.count, m.present) : "Exact outcome unavailable"));
+      card.appendChild(el("small", valid(m) ? fmt(m.absent) + " missing" : "Metric unavailable; no substitute used."));
+      if (Object.keys(evidence.referenceMetrics).length) {
+        card.appendChild(el("small", "Reference: " + (ref ? rate(ref.count, b.present) : "exact rung unavailable") +
+          (valid(b) ? "; " + fmt(b.absent) + " missing" : "")));
+        var lift = r && ref && m.present > 0 && b.present > 0 && ref.count > 0
+          ? (r.count / m.present) / (ref.count / b.present) : null;
+        card.appendChild(el("small", lift !== null ? "Lift: " + lift.toFixed(2) + "× the reference rate"
+          : "Lift unavailable" + (ref && ref.count === 0 ? ": reference has no hits." : ": exact rates required.")));
       }
-      * {
-        box-sizing: border-box;
+      $("outcomes").appendChild(card);
+    });
+  }
+  function distribution(g, h) {
+    var m = g.metrics["fwd_ret_" + h], b = evidence.referenceMetrics["fwd_ret_" + h];
+    var a = bins(m), base = bins(b);
+    var aligned = a && base && a.length === base.length && a.every(function (x, i) { return x.lo === base[i].lo && x.hi === base[i].hi; });
+    $("histogram").replaceChildren(); $("buckets").replaceChildren(); $("axis").replaceChildren();
+    $("referenceLegend").hidden = !aligned; $("axis").hidden = !a;
+    say("distributionTitle", "Closing-return distribution · " + h);
+    say("counts", valid(m) ? fmt(m.present) + " closing outcomes; " + fmt(m.absent) + " missing."
+      + (aligned ? " Reference: " + fmt(b.present) + " present; " + fmt(b.absent) + " missing." : "")
+      : "Closing outcomes unavailable at this horizon.");
+    say("binReading", "");
+    if (!a) { say("chartNote", "Complete recorded distribution unavailable. No buckets have been estimated."); return; }
+    var max = Math.max(0.01, ...a.map(function (x) { return m.present ? x.count / m.present : 0; }),
+      ...(aligned ? base.map(function (x) { return b.present ? x.count / b.present : 0; }) : []));
+    $("histogram").style.gridTemplateColumns = "repeat(" + a.length + ", minmax(0, 1fr))";
+    tableRow($("buckets"), ["Return band", g.label].concat(aligned ? [evidence.referenceLabel] : []), true);
+    var largest = a.reduce(function (best, x, i) { return x.count > a[best].count ? i : best; }, 0);
+    a.forEach(function (x, i) {
+      if ([-0.5, -0.05, 0, 0.05, 0.5].includes(x.lo)) {
+        var tick = el("span", pct(x.lo)); tick.style.left = (i / a.length * 100) + "%"; $("axis").appendChild(tick);
       }
-      body {
-        margin: 0;
-        padding: 20px;
+      var text = band(x) + ": " + rate(x.count, m.present) + (aligned ? "; reference " + rate(base[i].count, b.present) : "");
+      var bin = el("button", undefined, "bin" + (x.lo === 0 ? " zero" : ""));
+      bin.type = "button"; bin.title = text; bin.setAttribute("aria-label", text);
+      if (aligned && base[i].count > 0) {
+        var ref = el("span", undefined, "bar ref"); ref.style.height = (base[i].count / b.present / max * 100) + "%"; bin.appendChild(ref);
       }
-      h2 {
-        font-size: 21px;
-        margin: 0 0 6px;
+      if (x.count > 0) {
+        var bar = el("span", undefined, "bar"); bar.style.height = (x.count / m.present / max * 100) + "%"; bin.appendChild(bar);
       }
-      p {
-        margin: 8px 0;
-      }
-      .muted {
-        color: light-dark(#536471, #b3c1cb);
-        font-size: 12px;
-      }
-      .controls {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin: 18px 0;
-      }
-      label {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-      }
-      select,
-      button {
-        font: inherit;
-        padding: 7px;
-        border: 1px solid #82919a;
-        border-radius: 6px;
-        background: transparent;
-        color: inherit;
-      }
-      /* Native option popups do not reliably inherit the page's surface. */
-      select,
-      option {
-        background: var(--surface);
-        color: var(--ink);
-      }
-      select:focus-visible {
-        outline: 2px solid currentColor;
-        outline-offset: 2px;
-      }
-      button {
-        cursor: pointer;
-      }
-      button[aria-pressed="true"] {
-        background: #176f86;
-        color: white;
-      }
-      .chart {
-        margin: 16px 0;
-      }
-      .row {
-        display: grid;
-        grid-template-columns: 150px 1fr;
-        gap: 12px;
-        margin: 12px 0;
-      }
-      .bars {
-        min-width: 0;
-      }
-      .barline {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 25px;
-      }
-      .bar {
-        height: 14px;
-        background: #16829a;
-        min-width: 1px;
-        flex-shrink: 0;
-      }
-      .ref {
-        background: #8696a3;
-      }
-      .barline span {
-        font-size: 12px;
-        white-space: nowrap;
-      }
-      .legend {
-        display: flex;
-        gap: 15px;
-        flex-wrap: wrap;
-        font-size: 12px;
-      }
-      .swatch {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        background: #16829a;
-        margin-right: 5px;
-      }
-      .swatch.ref {
-        background: #8696a3;
-      }
-      .distribution {
-        max-height: 340px;
-        overflow: auto;
-        border-block: 1px solid #82919a66;
-      }
-      .distribution .row {
-        grid-template-columns: 145px 1fr;
-      }
-      .note {
-        border-left: 3px solid #82919a;
-        padding-left: 10px;
-      }
-      summary {
-        cursor: pointer;
-        font-weight: 600;
-      }
-      pre {
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        font-size: 11px;
-      }
-      details {
-        margin-top: 16px;
-      }
-      #status {
-        padding: 12px 0;
-      }
-      @media (max-width: 480px) {
-        body {
-          padding: 12px;
-        }
-        .row,
-        .distribution .row {
-          grid-template-columns: 1fr;
-          gap: 3px;
-        }
-        .barline span {
-          font-size: 11px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <h2>What followed these recorded minutes?</h2>
-    <p id="scope" class="muted">Historical evidence from the completed study.</p>
-    <p id="status" role="status">
-      Waiting for the study result. No computation is started by this display.
-    </p>
-    <section id="selected" hidden><h2>Your chosen outcome</h2><p id="selectedLabel"></p><p id="selectedCounts"></p><p id="selectedNote" class="note"></p></section>
-    <div id="app" hidden>
-      <h3>Closing-return exploration</h3>
-      <div class="controls">
-        <label
-          >View horizon
-          <select id="horizon" aria-label="Outcome horizon"></select></label
-        ><label
-          >Move size
-          <select id="threshold" aria-label="Closing return threshold">
-            <option value="0.01">1%</option>
-            <option value="0.02">2%</option>
-          </select></label
-        >
-      </div>
-      <p class="muted">
-        Display controls use already-computed outcomes. They do not change or rerun your study.
-      </p>
-      <p id="counts"></p>
-      <p id="finding"></p>
-      <div class="legend">
-        <span><i class="swatch"></i>Matching minutes</span
-        ><span><i class="swatch ref"></i>Unconditional same-scope reference</span>
-      </div>
-      <div class="controls">
-        <button id="compare" aria-pressed="true">Compare outcomes</button
-        ><button id="distribute" aria-pressed="false">Distribution</button>
-      </div>
-      <button id="tails" hidden aria-pressed="false">Show empty tail bands</button>
-      <div id="chart" class="chart"></div>
-      <p id="chartNote" class="muted"></p>
-      <p class="note">
-        Adjacent minutes and their forward windows overlap. The reference is unmatched and includes
-        the matching minutes. These historical comparisons do not establish a reliable trading
-        advantage.
-      </p>
-      <p id="meter" class="muted"></p>
-      <details>
-        <summary>Inspect exact study and evidence</summary>
-        <pre id="details"></pre>
-      </details>
-    </div>
-    <script>
-      (function () {
-        "use strict";
-        var evidence = null,
-          view = "compare",
-          showTails = false,
-          pending = new Map(),
-          serial = 0;
-        var $ = function (id) {
-          return document.getElementById(id);
-        };
-        var obj = function (v) {
-          return v && typeof v === "object" && !Array.isArray(v);
-        };
-        var count = function (v) {
-          return Number.isSafeInteger(v) && v >= 0;
-        };
-        var pct = function (v) {
-          return (v * 100).toFixed(1) + "%";
-        };
-        var fmt = function (v) {
-          return typeof v === "number" ? v.toLocaleString("en-US") : String(v);
-        };
-        function valid(m) {
-          return obj(m) && count(m.present) && count(m.absent);
-        }
-        function say(id, value) {
-          $(id).textContent = value;
-        }
-        function resize() {
-          window.parent.postMessage(
-            {
-              jsonrpc: "2.0",
-              method: "ui/notifications/size-changed",
-              params: { height: document.documentElement.scrollHeight },
-            },
-            "*",
-          );
-        }
-        function line(parent, n, d, ref, max) {
-          var el = document.createElement("div");
-          el.className = "barline";
-          if (count(n) && count(d) && n > 0 && n <= d && d > 0) {
-            var bar = document.createElement("div");
-            bar.className = "bar" + (ref ? " ref" : "");
-            bar.style.width = (n / d / max) * 55 + "%";
-            el.appendChild(bar);
-          }
-          var text = document.createElement("span");
-          text.textContent =
-            count(n) && count(d) && n <= d
-              ? fmt(n) + " / " + fmt(d) + (d ? " = " + (n > 0 && n / d < 0.001 ? "<0.1%" : pct(n / d)) : " (rate unavailable)")
-              : "Unavailable";
-          el.appendChild(text);
-          parent.appendChild(el);
-        }
-        function row(label, a, b, am, bm, max) {
-          var row = document.createElement("div");
-          row.className = "row";
-          var title = document.createElement("div");
-          title.textContent = label;
-          var bars = document.createElement("div");
-          bars.className = "bars";
-          line(bars, a, am, false, max);
-          line(bars, b, bm, true, max);
-          row.append(title, bars);
-          $("chart").appendChild(row);
-        }
-        function rung(m, op, t) {
-          return valid(m) && Array.isArray(m.thresholds)
-            ? m.thresholds.find(function (r) {
-                return (
-                  obj(r) &&
-                  r.op === op &&
-                  r.threshold === t &&
-                  count(r.count) &&
-                  r.count <= m.present
-                );
-              })
-            : null;
-        }
-        function bins(m) {
-          if (!valid(m) || !Array.isArray(m.buckets) || !m.buckets.length) return null;
-          var total = 0;
-          for (var b of m.buckets) {
-            if (
-              !obj(b) ||
-              !count(b.count) ||
-              !(b.lo === null || Number.isFinite(b.lo)) ||
-              !(b.hi === null || Number.isFinite(b.hi)) ||
-              (b.lo !== null && b.hi !== null && b.lo >= b.hi)
-            )
-              return null;
-            total += b.count;
-          }
-          return total === m.present ? m.buckets : null;
-        }
-        function render() {
-          if (!evidence) return;
-          var name = $("horizon").value,
-            m = evidence.metrics[name],
-            b = evidence.referenceMetrics && evidence.referenceMetrics[name],
-            t = Number($("threshold").value);
-          $("chart").replaceChildren();
-          $("tails").hidden = true;
-          $("chart").className = view === "distribution" ? "chart distribution" : "chart";
-          if (!valid(m)) {
-            say("finding", "Outcome summary unavailable for this horizon.");
-            return;
-          }
-          var c = evidence.counts || {};
-          say(
-            "counts",
-            fmt(c.total_matching === undefined ? "Unknown" : c.total_matching) +
-              " matching minutes / " +
-              fmt(c.eligible_symbol_buckets === undefined ? "unknown" : c.eligible_symbol_buckets) +
-              " eligible. " +
-              fmt(m.present) +
-              " outcomes present; " +
-              fmt(m.absent) +
-              " missing.",
-          );
-          var excluded = count(c.excluded_symbol_buckets)
-            ? fmt(c.excluded_symbol_buckets) + " excluded buckets"
-            : "Bucket exclusions unavailable";
-          var scope = evidence.referenceScope;
-          var scopeText =
-            obj(scope) && Array.isArray(scope.symbols)
-              ? scope.symbols.join(", ").toUpperCase() +
-                " | " +
-                String(scope.from) +
-                " through " +
-                String(scope.to) +
-                " | "
-              : "";
-          say(
-            "scope",
-            scopeText +
-              excluded +
-              (count(c.excluded_symbol_days)
-                ? "; " + fmt(c.excluded_symbol_days) + " excluded symbol-days."
-                : "."),
-          );
-          var up = rung(m, "gte", t),
-            down = rung(m, "lte", -t),
-            bu = rung(b, "gte", t),
-            bd = rung(b, "lte", -t);
-          say(
-            "finding",
-            m.present === 0
-              ? "No available outcomes: a rate cannot be estimated."
-              : m.present === 1
-                ? "One observation. This cannot establish a pattern."
-                : m.present < 30
-                  ? "Small sample: one or two observations can materially change these rates."
-                  : "Compare both directions below; these are overlapping minute observations, not independent events.",
-          );
-          if (view === "compare") {
-            var vals = [up, down].filter(Boolean).map(function (r) {
-              return r.count / m.present;
-            });
-            if (valid(b) && b.present)
-              vals = vals.concat(
-                [bu, bd].filter(Boolean).map(function (r) {
-                  return r.count / b.present;
-                }),
-              );
-            var max = Math.max(0.01, ...vals.filter(Number.isFinite));
-            row(
-              "Closed up at least " + pct(t),
-              up && up.count,
-              bu && bu.count,
-              m.present,
-              valid(b) ? b.present : null,
-              max,
-            );
-            row(
-              "Closed down at least " + pct(t),
-              down && down.count,
-              bd && bd.count,
-              m.present,
-              valid(b) ? b.present : null,
-              max,
-            );
-            say(
-              "chartNote",
-              "Both rows share a zero-based scale. Rates use all present outcomes, not the displayed occurrence page.",
-            );
-          } else {
-            var a = bins(m),
-              base = bins(b);
-            if (!a) {
-              say(
-                "chartNote",
-                "Complete recorded distribution unavailable. No curve or bins have been estimated.",
-              );
-            } else {
-              var aligned =
-                base &&
-                base.length === a.length &&
-                a.every(function (x, i) {
-                  return x.lo === base[i].lo && x.hi === base[i].hi;
-                });
-              var max = Math.max(
-                0.01,
-                ...a.map(function (x) {
-                  return m.present ? x.count / m.present : 0;
-                }),
-                ...(aligned
-                  ? base.map(function (x) {
-                      return b.present ? x.count / b.present : 0;
-                    })
-                  : []),
-              );
-              // Collapse only tails known to be empty in BOTH populations.
-              // Keep internal empty bands, original boundaries and all evidence bytes.
-              var first = 0, last = a.length - 1;
-              if (aligned && m.present > 0 && b.present > 0) {
-                while (first < last && a[first].count === 0 && base[first].count === 0) first++;
-                while (last > first && a[last].count === 0 && base[last].count === 0) last--;
-              }
-              var hiddenTails = first + a.length - 1 - last;
-              $("tails").hidden = hiddenTails === 0;
-              $("tails").textContent = showTails
-                ? "Collapse " + hiddenTails + " empty tail bands"
-                : "Show " + hiddenTails + " empty tail bands (0 in both groups)";
-              $("tails").setAttribute("aria-pressed", String(showTails));
-              a.forEach(function (x, i) {
-                if (!showTails && (i < first || i > last)) return;
-                var negative = x.hi !== null && x.hi <= 0;
-                var label =
-                  (negative ? "(" : "[") +
-                  (x.lo === null ? "-∞" : pct(x.lo)) +
-                  ", " +
-                  (x.hi === null ? "+∞" : pct(x.hi)) +
-                  (negative ? "]" : ")");
-                row(
-                  label,
-                  x.count,
-                  aligned ? base[i].count : null,
-                  m.present,
-                  aligned ? b.present : null,
-                  max,
-                );
-              });
-              say(
-                "chartNote",
-                (hiddenTails && !showTails
-                  ? "Showing the occupied range; " + hiddenTails + " empty tail bands can be expanded above. "
-                  : "All recorded return bands, including empty bins and open tails. ") +
-                "Bar length is share of outcomes, not probability density; bin widths can differ. " +
-                  (aligned
-                    ? "Same bin edges for both groups."
-                    : "Reference distribution unavailable or bin edges differ."),
-              );
-            }
-          }
-          var met = evidence.metering || {};
-          say(
-            "meter",
-            "This result: " +
-              (met.cache || "cache status unavailable") +
-              "; charged " +
-              (met.charged === undefined ? "unknown" : met.charged) +
-              " allowance units; remaining " +
-              (met.remaining === undefined ? "unknown" : met.remaining) +
-              ". Viewing charts makes no request.",
-          );
-          say(
-            "details",
-            JSON.stringify(
-              {
-                definition: evidence.query,
-                key: evidence.key,
-                counts: evidence.counts,
-                coverage: evidence.coverage,
-                referenceScope: evidence.referenceScope,
-                referenceCounts: evidence.referenceCounts,
-                referenceNotes: evidence.referenceNotes,
-                metric: name,
-                matched: m,
-                reference: b,
-              },
-              null,
-              2,
-            ),
-          );
-          resize();
-        }
-        function receive(result) {
-          var data = result && result._meta && result._meta.edgedepthEvidence;
-          if (!data && window.openai)
-            data =
-              window.openai.toolResponseMetadata &&
-              window.openai.toolResponseMetadata.edgedepthEvidence;
-          if (!obj(data) || !obj(data.metrics)) {
-            say(
-              "status",
-              "Chart data is unavailable in this host. The textual study result remains available.",
-            );
-            return;
-          }
-          evidence = data;
-          var selected = data.selectedOutcome;
-          $("selected").hidden = !obj(selected);
-          if (obj(selected) && obj(selected.measure)) {
-            var choice = selected.measure;
-            say("selectedLabel", (choice.kind === "touch" ? "Touches " : "Finishes ") + choice.direction + " " + pct(choice.magnitude) + " or more " + (choice.kind === "touch" ? "within " : "after ") + choice.horizon + ".");
-            var describe = function (r) {
-              return obj(r) && r.available && count(r.count) && count(r.present)
-                ? fmt(r.count) + " / " + fmt(r.present) + "; " + fmt(r.absent) + " missing"
-                : "unavailable for this exact measurement";
-            };
-            say("selectedCounts", "Chosen: " + describe(selected.matched) + ". Opposite: " + describe(selected.opposite) + ". Unconditional same-scope reference: " + describe(selected.reference) + ".");
-            say("selectedNote", Array.isArray(selected.limitations) ? selected.limitations.join(" ") : "");
-          }
-          var names = [
-            "fwd_ret_30m",
-            "fwd_ret_1h",
-            "fwd_ret_4h",
-            "fwd_ret_24h",
-            "fwd_ret_72h",
-            "fwd_ret_7d",
-          ].filter(function (n) {
-            return n in data.metrics;
-          });
-          $("horizon").replaceChildren();
-          names.forEach(function (n) {
-            var o = document.createElement("option");
-            o.value = n;
-            o.textContent = n.replace("fwd_ret_", "");
-            $("horizon").appendChild(o);
-          });
-          if (names.includes("fwd_ret_1h")) $("horizon").value = "fwd_ret_1h";
-          $("status").hidden = true;
-          $("app").hidden = false;
-          render();
-        }
-        $("tails").onclick = function () { showTails = !showTails; render(); };
-        $("horizon").onchange = render;
-        $("threshold").onchange = render;
-        ["compare", "distribute"].forEach(function (id) {
-          $(id).onclick = function () {
-            view = id === "compare" ? "compare" : "distribution";
-            $("compare").setAttribute("aria-pressed", String(view === "compare"));
-            $("distribute").setAttribute("aria-pressed", String(view === "distribution"));
-            render();
-          };
+      bin.onfocus = bin.onmouseenter = bin.onclick = function () { say("binReading", text); };
+      if (i === largest) say("binReading", text);
+      $("histogram").appendChild(bin);
+      tableRow($("buckets"), [band(x), rate(x.count, m.present)].concat(aligned ? [rate(base[i].count, b.present)] : []));
+    });
+    say("chartNote", "All " + a.length + " buckets, including empty bands and open tails. Height = share of outcomes; widths are not to scale. Focus or tap for counts."
+      + (base && !aligned ? " Reference bucket edges differ; overlay unavailable." : !base && Object.keys(evidence.referenceMetrics).length ? " Reference distribution unavailable at this horizon." : ""));
+  }
+  function ladder(g, h, t) {
+    var up = g.metrics["mfe_" + h], down = g.metrics["mae_" + h];
+    var values = new Set();
+    [up, down].forEach(function (m) {
+      if (valid(m) && Array.isArray(m.thresholds)) m.thresholds.forEach(function (r) {
+        if (obj(r) && Number.isFinite(r.threshold) && r.threshold !== 0) values.add(Math.abs(r.threshold));
+      });
+    });
+    var rungs = Array.from(values).sort(function (a, b) { return a - b; });
+    var pivot = rungs.findIndex(function (x) { return x >= (Number.isFinite(t) ? t : 0.1); });
+    var start = Math.max(0, Math.min((pivot < 0 ? rungs.length : pivot) - 2, rungs.length - 5));
+    $("ladder").replaceChildren();
+    tableRow($("ladder"), ["Move", "Ran up (MFE)", "Fell down (MAE)"], true);
+    rungs.slice(start, start + 5).forEach(function (size) {
+      var u = rung(up, "gte", size), d = rung(down, "lte", -size);
+      tableRow($("ladder"), [pct(size), u ? rate(u.count, up.present) : "Unavailable",
+        d ? rate(d.count, down.present) : "Unavailable"], false, size === t);
+    });
+    say("ladderTitle", "How far it ran / how far it fell · within " + h);
+    say("pathCounts", "Up: " + (valid(up) ? fmt(up.present) + " present, " + fmt(up.absent) + " missing" : "unavailable") +
+      ". Down: " + (valid(down) ? fmt(down.present) + " present, " + fmt(down.absent) + " missing" : "unavailable") +
+      ". Recorded extremes, not trade returns. Both can be reached; internal gaps can hide touches.");
+  }
+  function render() {
+    if (!evidence) return;
+    var g = group(), h = $("horizon").value, t = $("threshold").value === "" ? NaN : Number($("threshold").value);
+    say("matchedLegend", g.label); say("referenceLabel", evidence.referenceLabel);
+    outcomes(g, h, t); distribution(g, h); ladder(g, h, t);
+    say("referenceNote", evidence.referenceReason ? (evidence.referenceTimedOut ? "Reference timed out (" + evidence.referenceReason.split(":")[0] + "). The study is still valid; retry it later for a reference. No lift is shown."
+        : "Reference: " + evidence.referenceReason + " No lift is shown.")
+      : evidence.referenceKind === "predicate_false" ? "Reference: other eligible minutes where the condition was false. It excludes matching minutes."
+      : "Reference: all eligible minutes in the same scope, including matches. It is not a matched control.");
+    say("limitations", (count(g.count) && g.count < 30 ? "Fewer than 30 occurrences; rates are sensitive to individual observations. " : "") +
+      "Minute observations and forward windows can overlap. Historical comparisons do not establish a trading advantage.");
+    say("details", JSON.stringify(evidence, null, 2)); resize();
+  }
+  function receive(result) {
+    $("app").hidden = true; $("status").hidden = false;
+    say("title", "Study result"); say("scope", ""); say("stats", "");
+    var data = result && result._meta && result._meta.edgedepthEvidence;
+    if (!result && window.openai) data = window.openai.toolResponseMetadata && window.openai.toolResponseMetadata.edgedepthEvidence;
+    // Error envelopes may arrive even when the host drops UI metadata.
+    var error = data && data.state === "error" ? data : null;
+    if (!error && result) {
+      var payloads = [result.structuredContent].concat(Array.isArray(result.content) ? result.content.map(function (block) {
+        try { return JSON.parse(block.text); } catch (_) { return null; }
+      }) : []);
+      var payload = payloads.find(function (p) { return obj(p) && (Array.isArray(p.errors) || (p.code && p.error)); });
+      if (payload) error = { status: Array.isArray(payload.errors) ? 422 : null, errors: payload.errors || [{ code: payload.code, message: payload.error }] };
+      else if (result.isError) error = { errors: [{ code: "TOOL_ERROR", message: (result.content || []).map(function (b) { return b.text || ""; }).join("\n") }] };
+    }
+    if (error) {
+      say("title", error.status === 422 ? "The engine rejected this document" : "The study could not complete");
+      say("status", (error.status ? "HTTP " + error.status + " · " : "") + ((error.errors || []).map(function (e) { return e.code + ": " + e.message; }).join("\n") || "The request failed."));
+    } else if (data && data.state === "not_modified") {
+      say("status", "The cached study is unchanged (304). Request its cached bytes without If-None-Match to view the chart.");
+    } else if (!obj(data) || data.state !== "ready" || !Array.isArray(data.groups) || !data.groups.length) {
+      say("status", data ? "The study returned no chart evidence. Read the textual result."
+        : "This host did not provide chart evidence. The textual study result remains available.");
+    } else {
+      evidence = data;
+      say("title", data.heading.title); say("scope", data.heading.scope); say("question", "Outcome: " + data.heading.outcome);
+      var c = data.counts || {};
+      say("stats", fmt(c.total_matching === undefined ? c.population_anchors : c.total_matching) + " occurrences · " + fmt(c.symbols_scanned) + " symbols scanned");
+      options("group", data.groups.map(function (g) { return [g.id, g.label + " (" + fmt(g.count) + ")"]; }), data.groups[0].id);
+      $("groupLabel").hidden = data.groups.length === 1;
+      var horizons = ["30m", "1h", "4h", "24h", "72h", "7d"].filter(function (h) {
+        return data.measure && data.measure.horizon === h || data.groups.some(function (g) {
+          return ["fwd_ret_", "mfe_", "mae_"].some(function (prefix) { return prefix + h in g.metrics; });
         });
-        document.querySelector("details").addEventListener("toggle", resize);
-        window.addEventListener("message", function (event) {
-          if (event.source !== window.parent || !obj(event.data) || event.data.jsonrpc !== "2.0")
-            return;
-          var msg = event.data;
-          if (msg.method === "ui/notifications/tool-result") receive(msg.params);
-          if (msg.id && pending.has(msg.id)) {
-            pending.delete(msg.id);
-            window.parent.postMessage(
-              { jsonrpc: "2.0", method: "ui/notifications/initialized", params: {} },
-              "*",
-            );
-            resize();
-          }
-        });
-        window.addEventListener("openai:set_globals", function () {
-          receive(null);
-        });
-        var id = ++serial;
-        pending.set(id, true);
-        window.parent.postMessage(
-          {
-            jsonrpc: "2.0",
-            id: id,
-            method: "ui/initialize",
-            params: {
-              appInfo: { name: "edgedepth-evidence", version: "1.0.0" },
-              appCapabilities: {},
-              protocolVersion: "2026-01-26",
-            },
-          },
-          "*",
-        );
-        if (window.openai && window.openai.toolResponseMetadata) receive(null);
-      })();
-    </script>
-  </body>
-</html>
-`
+      });
+      var horizon = data.measure ? data.measure.horizon : horizons.includes("24h") ? "24h" : horizons[0];
+      options("horizon", horizons.map(function (h) { return [h, h]; }), horizon);
+      say("coverage", fmt(c.eligible_symbol_buckets) + " eligible minutes; " + fmt(c.excluded_symbol_buckets) + " excluded buckets; " + fmt(c.excluded_symbol_days) + " excluded symbol-days.");
+      var met = data.metering || {};
+      say("meter", "Cache: " + (met.cache || "unknown") + "; charged " + (met.charged === undefined ? "unknown" : met.charged) + " allowance units; remaining " + (met.remaining === undefined ? "unknown" : met.remaining) + ". Viewing charts makes no request.");
+      $("status").hidden = true; $("app").hidden = false;
+      thresholds(true); render();
+    }
+    resize();
+  }
+  $("group").onchange = function () { thresholds(true); render(); };
+  $("horizon").onchange = function () { thresholds(!evidence.measure); render(); };
+  $("threshold").onchange = render;
+  document.querySelectorAll("details").forEach(function (d) { d.addEventListener("toggle", resize); });
+  window.addEventListener("message", function (event) {
+    if (event.source !== window.parent || !obj(event.data) || event.data.jsonrpc !== "2.0") return;
+    var msg = event.data;
+    if (msg.method === "ui/notifications/tool-result") receive(msg.params);
+    if (msg.id && pending.has(msg.id)) {
+      pending.delete(msg.id);
+      window.parent.postMessage({ jsonrpc: "2.0", method: "ui/notifications/initialized", params: {} }, "*"); resize();
+    }
+  });
+  window.addEventListener("openai:set_globals", function () { receive(null); });
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(resize).observe(document.body);
+  var id = ++serial; pending.set(id, true);
+  window.parent.postMessage({ jsonrpc: "2.0", id: id, method: "ui/initialize", params: {
+    appInfo: { name: "edgedepth-evidence", version: "2.0.0" }, appCapabilities: {}, protocolVersion: "2026-01-26"
+  } }, "*");
+  if (window.openai && window.openai.toolResponseMetadata) receive(null);
+})();
+</script>
+</body>
+</html>`
