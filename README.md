@@ -1,6 +1,6 @@
 # EdgeDepth Research MCP Server
 
-`@edgedepth/research-mcp` is the official, research-only Model Context Protocol server for [EdgeDepth](https://edgedepth.com/), a [market microstructure search engine](https://edgedepth.com/research) over recorded Binance USDT-M crypto and TradFi perpetuals. Use it from ChatGPT, Claude, Cursor, Codex, or any MCP client to find every verified occurrence of a market condition, inspect forward outcomes across the complete matched set, read an unconditional same-scope reference, and open replay-linked evidence.
+`@edgedepth/research-mcp` is the official, research-only Model Context Protocol server for [EdgeDepth](https://edgedepth.com/), a [market microstructure search engine](https://edgedepth.com/research) over recorded Binance USDT-M crypto perpetuals. Use it from ChatGPT, Claude, Cursor, Codex, or any MCP client to find every verified occurrence of a market condition, inspect forward outcomes across the complete matched set, read an unconditional same-scope reference, and open replay-linked evidence.
 
 Every result includes counts with denominators and a reproducibility key. Same key, same bytes.
 

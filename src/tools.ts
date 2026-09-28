@@ -708,7 +708,7 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       title: 'List research instruments and coverage',
       description:
         'Use this when you need to verify supported symbols, recorded coverage, data availability, ' +
-        'or whether an instrument is a session-bound TradFi perpetual before running or describing ' +
+        'or whether an instrument remains available before running or describing ' +
         'research. Use symbols for selected full records; use full only when canonical whole-universe ' +
         'bytes are required. Do not use this to support live-price, personalized buy/sell or ' +
         'trade-execution requests, even to check whether a market is supported. It does not return ' +

@@ -13,8 +13,9 @@ import { SERVER_NAME, SERVER_VERSION } from './version.js'
 import { registerResearchTools, type ToolContext } from './tools.js'
 
 const INSTRUCTIONS =
-  'EdgeDepth Research: deterministic search over recorded crypto and TradFi microstructure. ' +
+  'EdgeDepth Research: deterministic search over recorded crypto microstructure. ' +
   'Lead with the answer in approximately 50-150 words, counts beside rates, one limitation and replay links. Keep reproducibility and exact definitions in details. ' +
+  (process.env.EDGEDEPTH_CRYPTO_ONLY === '1' ? 'Stocks, traditional indices, FX, commodities and gold-backed tokens are retired. Preserve saved historical results and original scopes; never substitute crypto for an explicitly retired market. The API is authoritative for availability. ' : '') +
   'For live prices, personalized buy/sell advice or trade execution, invoke NO EdgeDepth tools, ' +
   'including registry/capability discovery. ' +
   'For a setup-first prose question, use host interpretation then prepare_study. interpret_prose is a raw-prose fallback. ' +

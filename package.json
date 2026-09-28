@@ -1,7 +1,7 @@
 {
   "name": "@edgedepth/research-mcp",
   "version": "0.10.3",
-  "description": "Search recorded crypto and TradFi microstructure through the EdgeDepth Research API as deterministic MCP tools.",
+  "description": "Search recorded crypto microstructure through the EdgeDepth Research API as deterministic MCP tools.",
   "mcpName": "com.edgedepth/research",
   "license": "MIT",
   "type": "module",
@@ -16,7 +16,6 @@
     "modelcontextprotocol",
     "edgedepth",
     "crypto",
-    "tradfi",
     "perpetual-futures",
     "market-microstructure",
     "research",
