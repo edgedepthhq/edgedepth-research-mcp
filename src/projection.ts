@@ -18,11 +18,12 @@
  *
  *  1. RESPONSE-SIDE ONLY. The request document is never rewritten, so the
  *     canonical query hash, the credit charged and the cache entry are exactly
- *     what the caller asked for, and the document the agent echoes is the
- *     document that ran.
- *  2. ONLY EVER REMOVE. Nothing is recomputed, rounded, re-ordered or
- *     summarized into a new number. Every removal is counted and stated in a
- *     note, with the exact way to get the bytes back.
+ *     what the caller asked for. A compact query_preview is labelled
+ *     non-executable; full_counts restores the exact definition.
+ *  2. STATE DISPLAY DERIVATIONS. Legacy detail thinning removes values; the
+ *     paired answer derives rates, and compact scan text adds list receipts
+ *     and UTC monthly sums. Notes name each transformation and its recovery
+ *     option. These projections never replace the canonical engine bytes.
  *  3. NEVER TOUCH THE DENOMINATOR. counts, outcomes_summary bucket counts,
  *     absent tallies, predicate_coverage, the reproducibility key, the cursor
  *     and representatives pass through untouched. What is thinned is either an
@@ -34,6 +35,7 @@
  */
 
 import { answerNote, pairOutcomes } from './answer.js'
+import { compactTextDetails } from './scanText.js'
 
 /** Base projection tag, kept from the zero-count compaction so the meaning of
  *  the leading token does not change: this body is a projection, not the
@@ -58,6 +60,9 @@ export interface LeanOptions {
   /** replace the outcome ladders with the paired answer block (see answer.ts).
    *  False restores the 0.4.0 shape: full ladders on both sides. */
   answer: boolean
+  /** Compact run_scan text; display horizon only, never sent to the engine. */
+  textHorizon?: string
+  textMeasure?: string
 }
 
 export const DEFAULT_LEAN: LeanOptions = {
@@ -78,6 +83,8 @@ export const DEFAULT_LEAN: LeanOptions = {
 export function projectionTag(opts: LeanOptions): string {
   const parts = [COMPACT_TAG]
   if (opts.answer) parts.push('a')
+  if (opts.textHorizon) parts.push(`text1-${opts.textHorizon}`)
+  if (opts.textMeasure) parts.push(opts.textMeasure)
   parts.push(`r${Math.max(0, Math.trunc(opts.rows))}`)
   if (opts.fullRows) parts.push('full')
   if (opts.symbols !== DEFAULT_SYMBOLS) parts.push(`s${Math.max(0, Math.trunc(opts.symbols))}`)
@@ -237,8 +244,7 @@ export function leanScanBody(
   }
 
   // 4. The outcome ladders. In answer mode they are REPLACED by the paired
-  //    block (the only step in this file that derives rather than removes, and
-  //    it keeps every count beside its derived rate: see answer.ts). Otherwise
+  //    block (keeping every count beside its derived rate: see answer.ts). Otherwise
   //    the 0.4.0 behaviour stands and only empty rungs go.
   const paired = opts.answer
     ? pairOutcomes(body.outcomes_summary, baselineSummary ?? body.baseline)
@@ -258,7 +264,15 @@ export function leanScanBody(
       const { metrics: _metrics, ...rest } = body.baseline
       body.baseline = rest
     }
-    notes.push(answerNote(paired))
+    notes.push(opts.textMeasure
+      ? 'answer (counts verbatim; rates derived): only the exact agreed outcome and opposite direction are shown in selected_outcome. rate=count/present. Other thresholds are omitted, never treated as zero. full_outcomes: true restores all rungs.'
+      : opts.textHorizon
+      ? `answer (counts verbatim; rate and lift derived): ${paired.dropped} rung(s) omitted. ` +
+        'Kept per metric: +/-1% and +/-2% except zero/all-hit rungs, plus the largest absolute log-lift rung with at least 30 matches (kept_for). This data-selected rung is exploratory. ' +
+        'rate=count/present; lift=rate/baseline_rate. Exact agreed outcome, including zero/all hits, is separate. ' +
+        (paired.paired ? 'The reference is unconditional, not a matched control. ' : 'No unconditional reference. Do not invent a baseline. ') +
+        'full_outcomes: true restores all rungs; full_counts: true restores canonical bytes.'
+      : answerNote(paired))
   } else {
     // Not answerable (no threshold ladder in this body, or full_outcomes was
     // asked for): degrade to the 0.4.0 removal rather than doing nothing.
@@ -271,6 +285,8 @@ export function leanScanBody(
       )
     }
   }
+
+  if (opts.textHorizon) notes.push(...compactTextDetails(body, opts.textHorizon, !!opts.textMeasure))
 
   if (notes.length === 0) return null
   return { bodyText: JSON.stringify(body), notes }

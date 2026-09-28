@@ -37,6 +37,7 @@ import {
   type OutcomeFirstLeanOptions,
 } from './projection.js'
 import { selectedOutcome } from './selectedOutcome.js'
+import { scanTextAnswer, listReceipt } from './scanText.js'
 import { scanChartMeta, SCAN_CHART_URI } from './scanChart.js'
 import { getRegistry } from './registry.js'
 import { registerScreenshotTools } from './screenshots.js'
@@ -270,7 +271,7 @@ const STUDY_SUMMARY_INPUT = z.string().min(1).max(8000).optional().describe(
 
 /** Render authenticated web replay handoffs from the additive v4
  * representative block without changing the canonical body block. */
-function replayHandoffs(res: ApiResponse, measure?: z.infer<typeof WORKBENCH_MEASURE_INPUT>): TextBlock | null {
+function replayHandoffs(res: ApiResponse, measure?: z.infer<typeof WORKBENCH_MEASURE_INPUT>, compact = false): TextBlock | null {
   if (!res.ok || !res.bodyText) return null
   let parsed: unknown
   try {
@@ -291,13 +292,14 @@ function replayHandoffs(res: ApiResponse, measure?: z.infer<typeof WORKBENCH_MEA
   const links: string[] = []
   let oldestDays = 0
   if (body.query && typeof body.query === 'object') {
-    links.push(
-      'definition_handoff: https://app.edgedepth.com/research/workbench?rq=' +
+    const definitionLink = 'https://app.edgedepth.com/research/workbench?rq=' +
         encodeURIComponent(JSON.stringify(body.query)) +
         (measure ? '&measure=' + encodeURIComponent([
           measure.kind, measure.direction, measure.magnitude, measure.horizon,
-        ].join(',')) : ''),
-    )
+        ].join(',')) : '')
+    links.push(compact && definitionLink.length > 2000
+      ? 'definition_handoff: omitted because the exact URL exceeds 2,000 characters. full_counts: true restores the full query and link; the original approved document remains the rerun source. No hash-only link is available.'
+      : 'definition_handoff: ' + definitionLink)
   }
   for (const value of representatives) {
     if (!value || typeof value !== 'object') continue
@@ -331,6 +333,8 @@ function replayHandoffs(res: ApiResponse, measure?: z.infer<typeof WORKBENCH_MEA
     if (Number.isFinite(ageDays)) oldestDays = Math.max(oldestDays, ageDays)
   }
   if (links.length === 0) return null
+  if (compact) return text('Authenticated web handoffs (save/arm require explicit confirmation):\n' +
+    links.join('\n') + '\nReplay age is shown in days; account/date coverage may refuse playback (TIER_WINDOW).')
   return text(
     'Authenticated web handoffs (save/arm require explicit confirmation; playback stays outside MCP):\n' +
       links.join('\n') +
@@ -345,7 +349,7 @@ function replayHandoffs(res: ApiResponse, measure?: z.infer<typeof WORKBENCH_MEA
 /** The baseline is useful context, not a precondition for a valid scan. Keep
  *  its bytes in a separately labelled block and make every failure explicitly
  *  non-fatal. Never describe this unconditional population as comparable. */
-function baselineReference(res: ApiResponse, lean = true, foldedIntoAnswer = false): TextBlock {
+function baselineReference(res: ApiResponse, lean = true, foldedIntoAnswer = false, compact = false): TextBlock {
   if (!res.ok || res.notModified || !res.bodyText) {
     let code = `HTTP_${res.status}`
     try {
@@ -360,7 +364,18 @@ function baselineReference(res: ApiResponse, lean = true, foldedIntoAnswer = fal
         `${code}). The historical scan result remains valid; do not invent a reference rate.`,
     )
   }
-  const projected = lean ? leanSummaryBody(res.bodyText, foldedIntoAnswer) : null
+  let projected = lean ? leanSummaryBody(res.bodyText, foldedIntoAnswer) : null
+  if (compact) {
+    try {
+      const body = JSON.parse(projected?.bodyText ?? res.bodyText)
+      const receipt = listReceipt(body.scope?.symbols)
+      if (receipt) { body.scope = { ...body.scope, symbols_preview: receipt }; delete body.scope.symbols }
+      if (projected || receipt) projected = { bodyText: JSON.stringify(body), notes: [
+        'Reference ladder/daily counts omitted; displayed rates use this reference. full_outcomes: true restores the ladder; full_counts: true restores canonical bytes.' +
+        (receipt ? ' scope.symbols_preview is a sorted-list receipt, not executable scope.' : ''),
+      ] }
+    } catch { /* Malformed data stays verbatim. */ }
+  }
   return text(
     'unconditional_same_scope_reference:\n' +
       'This reference is unconditional over the same symbols and window. It is not matched, ' +
@@ -385,7 +400,7 @@ export { COMPACT_TAG, compactScanBody, leanScanBody, projectionTag } from './pro
 
 /** passthrough, minus what the lean projection removes. Falls back to verbatim
  *  on parse failure, non-JSON, error bodies, or when nothing would be removed,
- *  so the projection can only ever REMOVE. */
+ *  with labelled display derivations in compact run_scan text. */
 function leanPassthrough(
   res: ApiResponse,
   opts: LeanOptions,
@@ -396,8 +411,16 @@ function leanPassthrough(
   if (res.notModified) return passthrough({ ...res, headers: scopedHeaders }, on304)
   if (!res.ok || !res.bodyText) return passthrough(res, on304)
   const lean = leanScanBody(res.bodyText, opts, baselineSummary)
-  if (!lean) return passthrough(res, on304)
+  if (!lean) return passthrough(opts.textHorizon ? { ...res, headers: scopedHeaders } : res, on304)
   const result = passthrough({ ...res, bodyText: lean.bodyText, headers: scopedHeaders }, on304)
+  if (opts.textHorizon) {
+    const notes = lean.notes.map(note => note.startsWith('answer (') || note.startsWith('text ')
+      ? note : note.split('. ')[0] + '.')
+    result.content.push(text('projection: ' + notes.join('\n') +
+      '\nRows are examples, never denominators. Missing preview symbols are stated zeros or omitted tail entries, never missing data. The preview need not sum to total_matching. ' +
+      'rows/full_rows restore page detail; full_outcomes restores all horizons; full_counts restores exact bytes.'))
+    return result
+  }
   // The answer block derives, so it carries its own heading and states its
   // operands; every other note is still a pure removal.
   const removals = lean.notes.filter((note) => !note.startsWith('answer ('))
@@ -974,7 +997,9 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         '304 revalidations are free. Successful results include an optional inline comparison and ' +
         'recorded-bin distribution, populated independently of full_outcomes. The default compact ' +
         'text is sufficient to accompany this component; no extra scan or chart generation is ' +
-        'needed solely to display it.',
+        'needed solely to display it. Compact text leads with the agreed outcome, counts and limitations. ' +
+        'Long query lists become labelled non-executable previews; oversized definition links are omitted. ' +
+        'full_counts restores the exact query, daily counts and handoff.',
       inputSchema: {
         document: z
           .record(z.any())
@@ -997,11 +1022,15 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
               'every zero-count instrument, every page row with its whole setup vector, the ' +
               'per-occurrence outcomes map and every empty ladder rung. Universe scans are ' +
               'hundreds of KB this way and can exceed a client tool-result limit. Default ' +
-              'returns a projection that only ever REMOVES, and states each removal.',
+              'returns a stated display projection with list receipts and a monthly match calendar; the exact request is never rewritten.',
           ),
         measure: WORKBENCH_MEASURE_INPUT,
         study_summary: STUDY_SUMMARY_INPUT,
         ...ROWS_INPUT,
+        rows: z.number().int().min(0).max(50).optional().describe(
+          'Example rows to retain: default 1 in compact text, 3 with full_outcomes; max 50. ' +
+          'Rows are examples, never the denominator. full_counts restores all canonical page rows.',
+        ),
       },
       annotations: METERED_COMPUTE,
     },
@@ -1009,6 +1038,12 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       const key = ctx.getKey()
       if (!key) return noKey()
       const lean = leanOptions({ rows, full_rows, full_outcomes })
+      if (!full_counts && !full_outcomes) {
+        lean.textHorizon = measure?.horizon ?? '24h'
+        lean.textMeasure = measure ? `${measure.kind}-${measure.direction}-${measure.magnitude}` : undefined
+        lean.symbols = 3
+        if (rows === undefined) lean.rows = 1
+      }
       const res = await apiRequest(ctx.apiBase, {
         method: 'POST',
         path: '/query',
@@ -1047,11 +1082,21 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       // The reference sheds its ladder only when the answer block actually
       // paired one in, so a baseline that failed still arrives whole.
       const folded = !full_counts && lean.answer && baselineSummaryOf(baseline) !== undefined
-      if (baseline) result.content.push(baselineReference(baseline, !full_counts, folded))
+      if (baseline) result.content.push(baselineReference(baseline, !full_counts, folded, !!lean.textHorizon))
       const selected = selectedOutcome(res, baseline, measure)
-      if (selected) result.content.splice(1, 0, text(JSON.stringify({ selected_outcome: selected })))
-      const handoffs = replayHandoffs(res, measure)
-      if (handoffs) result.content.push(handoffs)
+      if (selected) {
+        // The leading prose and body already carry these limits and the exact key.
+        const { definition_key, limitations, ...reading } = selected
+        result.content.splice(1, 0, text(JSON.stringify({ selected_outcome: lean.textHorizon ? reading : selected })))
+      }
+      const handoffs = replayHandoffs(res, measure, !!lean.textHorizon)
+      if (handoffs && !lean.textHorizon) result.content.push(handoffs)
+      if (lean.textHorizon) {
+        const answer = scanTextAnswer(res, baseline, measure)
+        const first = result.content[0]
+        if (first) result.content[0] = text((answer ? answer + '\n' : '') + first.text +
+          (handoffs ? '\n' + handoffs.text : ''))
+      }
       const chart = scanChartMeta(res, baseline, measure, document, study_summary)
       if (chart) result._meta = chart
       return withRepair(result, res, ctx, key)

@@ -305,7 +305,7 @@ describe('run_scan end to end', () => {
     // The reference block keeps its provenance and loses its duplicate ladder.
     const reference = out.find((t) => t.startsWith('unconditional_same_scope_reference'))!
     expect(reference).toContain('def456')
-    expect(reference).toContain('is already stated as baseline_rate')
+    expect(reference).toContain('displayed rates use this reference')
     expect(JSON.parse(reference.slice(reference.indexOf('{'))).baseline.metrics).toBeUndefined()
     expect(joined).toContain('answer (counts verbatim')
   })

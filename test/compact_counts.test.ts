@@ -99,7 +99,7 @@ describe('run_scan projection (end to end)', () => {
     expect(note).toContain('never missing data')
 
     // Meta line carries the projection-scoped ETag, never the raw one.
-    expect(blocks[0]).toContain(`etag=${scopeEtag('W/"abc"', projectionTag(DEFAULT_LEAN))}`)
+    expect(blocks[0]).toContain(`etag=${scopeEtag('W/"abc"', projectionTag({ ...DEFAULT_LEAN, textHorizon: '24h', symbols: 3, rows: 1 }))}`)
     expect(blocks[0]).not.toContain('etag=W/"abc" ')
   })
 
@@ -131,7 +131,7 @@ describe('run_scan projection (end to end)', () => {
     )
     const client = await connectClient()
 
-    const scoped = scopeEtag('W/"abc"', projectionTag(DEFAULT_LEAN))!
+    const scoped = scopeEtag('W/"abc"', projectionTag({ ...DEFAULT_LEAN, textHorizon: '24h', symbols: 3, rows: 1 }))!
     await client.callTool({
       name: 'run_scan',
       arguments: { document: DOCUMENT, if_none_match: scoped },
@@ -158,7 +158,7 @@ describe('run_scan projection (end to end)', () => {
     expect(texts(res)).toContain(body)
   })
 
-  it('single-symbol scans with no zeros pass through verbatim', async () => {
+  it('keeps a small canonical body but scopes the surrounding text representation', async () => {
     const raw = JSON.stringify({
       counts: { total_matching: 5 },
       counts_by_symbol: { btcusdt: { total_matching: 5 } },
@@ -172,7 +172,7 @@ describe('run_scan projection (end to end)', () => {
     const res = await client.callTool({ name: 'run_scan', arguments: { document: DOCUMENT } })
     const blocks = texts(res)
     expect(blocks).toContain(raw)
-    expect(blocks[0]).toContain('etag=W/"one"')
+    expect(blocks[0]).toContain(`etag=${scopeEtag('W/"one"', projectionTag({ ...DEFAULT_LEAN, textHorizon: '24h', symbols: 3, rows: 1 }))}`)
     expect(blocks.some((b) => b.includes('omitted'))).toBe(false)
   })
 })

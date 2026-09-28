@@ -89,8 +89,9 @@ the zero and long-tail entries of `counts_by_symbol`, and empty threshold
 rungs. That overflows a client's tool-result budget before it answers anything.
 
 `run_scan`, `next_page` and `run_cohort` therefore return a **stated
-projection** by default. It only ever REMOVES, and every removal is listed in a
-trailing note with the exact way to get the bytes back:
+projection** by default. Display derivations and removals are stated with the
+exact way to recover detail. Default `run_scan` adds the compact text view described
+below; `full_outcomes: true`, `next_page` and `run_cohort` keep this detailed projection:
 
 - occurrence rows are trimmed to `rows` (default 3) and each kept row keeps the
   setup fields its own `evidence` block names - `full_rows: true` restores the
@@ -108,8 +109,8 @@ trailing note with the exact way to get the bytes back:
   marked `kept_for`. `full_outcomes: true` returns every rung and the per-rung
   histogram, on the matched set and the reference separately.
 
-Counts, denominators, absent tallies, `predicate_coverage`, representatives,
-the page cursor and the reproducibility key are never touched, and the request
+Full-population counts, outcome denominators, absent tallies, `predicate_coverage`,
+representatives, the page cursor and reproducibility key stay intact. The request
 document is never rewritten, so the canonical query hash and the credit charged
 are exactly what you asked for. `full_counts: true` returns the engine's
 verbatim canonical bytes with no projection at all. ETags are
@@ -287,9 +288,10 @@ no additional requests or allowance consumption occur when changing chart views.
 Reference distributions are compared only when their bin edges align. Empty bins,
 open tails, missing outcomes and zero/one-observation states remain visible.
 Horizon and move-size controls are display choices over already-computed outcomes,
-not changes to the approved query. The card defaults to the labelled 1h / 1% view.
-Exact study/evidence details expand inside the card; text-only hosts keep the
-existing response. The HTML resource has no network dependencies or mutations.
+not changes to the approved query. The card opens on the stated outcome; without one, it prefers 24h and a
+labelled exploratory move supported by at least 30 occurrences when available.
+Exact study/evidence details expand inside the card; text-only hosts receive
+the compact scan response. The HTML resource has no network dependencies or mutations.
 This is a developer-connector update, not an automatic official V1 rescan.
 
 
@@ -493,3 +495,29 @@ Rejected documents display their HTTP state, codes and messages separately from
 hosts that omit chart evidence. No engine, research_query.v2, canonical bytes,
 projection, authentication or billing behavior changes. Release and actual
 Claude-host acceptance remain pending James's go.
+
+
+### Compact scan text (local, release required)
+
+Default `run_scan` text leads with the agreed outcome, both directions, counted
+population and limitations. It shows the exact agreed outcome and opposite direction (exploratory rungs at
+24h when unspecified), keeping all horizons' present/absent counts. The top three
+matching markets and one example row remain (`rows` requests more); neither is the denominator.
+
+Long reference-scope rosters also carry a labelled receipt. Long string `in`
+lists become explicitly non-executable `query_preview` receipts:
+count, SHA256 of UTF-8 JSON of the sorted list (duplicates retained), and the first
+five sorted values. Repeated row evidence references the same list hash. Example
+outcomes keep the displayed horizon, including its bucket-presence counts. UTC
+daily match counts become monthly sums with first/last matching day and the peak
+day (earliest tie). Match dates are not an effective feature-availability window;
+this response does not contain predicate first-data dates.
+
+Exact workbench URLs longer than 2,000 characters are explicitly omitted in compact
+text. No hash-only URL or persistent definition lookup is promised. The original
+approved tool input remains exact; `full_counts: true` restores the canonical
+result, full definition, daily counts and complete handoff. `full_outcomes: true`
+restores the detailed outcome view. The widget retains complete evidence. No engine
+request, canonical hash, metering or baseline budget changes. Text-format and horizon
+changes have distinct projection ETags. Cohort, stratified and continuation text
+retain their existing projections in this bounded follow-up.
