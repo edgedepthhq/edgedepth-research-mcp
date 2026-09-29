@@ -14,7 +14,7 @@ describe('direct basis compact discovery', () => {
     // The contract lists every accepted pair's intervals (the engine enforces
     // them); the web registry serves the envelope and the paired symbols.
     expect(scope.availability).toBe('per_symbol_dated_pairings')
-    expect(Object.keys(scope.intervals)).toHaveLength(412)
+    expect(Object.keys(scope.intervals)).toHaveLength(410)
     expect(JSON.stringify(projected)).toContain('per_symbol_dated_pairings')
   })
 })

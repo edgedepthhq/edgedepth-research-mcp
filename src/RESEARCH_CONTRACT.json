@@ -367,7 +367,6 @@
         "ordiusdt",
         "oxtusdt",
         "partiusdt",
-        "paxgusdt",
         "pendleusdt",
         "penguusdt",
         "peopleusdt",
@@ -486,7 +485,6 @@
         "woousdt",
         "wusdt",
         "xaiusdt",
-        "xautusdt",
         "xlmusdt",
         "xplusdt",
         "xrpusdt",
@@ -2158,12 +2156,6 @@
             "2026-09-11T00:00:00Z"
           ]
         ],
-        "paxgusdt": [
-          [
-            "2025-07-15T00:01:00Z",
-            "2026-09-11T00:00:00Z"
-          ]
-        ],
         "pendleusdt": [
           [
             "2025-07-15T00:01:00Z",
@@ -2904,12 +2896,6 @@
             "2026-09-11T00:00:00Z"
           ]
         ],
-        "xautusdt": [
-          [
-            "2026-03-26T00:01:00Z",
-            "2026-09-11T00:00:00Z"
-          ]
-        ],
         "xlmusdt": [
           [
             "2025-07-15T00:01:00Z",
@@ -3184,7 +3170,7 @@
     "Horizon completeness: an anchor closer to the record edge than a horizon reads absent for that horizon and is counted absent, never truncated. With the 7d horizon the last seven days of the record are absent at 7d by construction.",
     "Representatives are selected on the named outcome metric over the complete result before paging (representatives_note says so in the bytes): examples of what followed, never rates.",
     "The outcome sort fields order the page only: counts, outcomes_summary, counts_by_symbol, predicate_coverage and representatives are identical under every sort of the same definition. outcome.* remains forbidden in predicates (OUTCOME_IN_PREDICATE).",
-    "feature.spot_perp_close_basis exists only for Binance USD-M perpetuals with a qualified same-underlying USDT Binance spot pair (412 accepted, fewer than the recorded perpetual universe) and only inside that symbol's intervals in feature_scopes. A query must name its symbols and keep its window inside one interval for each; anything else is refused, never answered as absent. Inside an interval, a missing or zero-trade bar on either leg is absent.",
+    "feature.spot_perp_close_basis exists only for Binance USD-M perpetuals with a qualified same-underlying USDT Binance spot pair (410 accepted and not retired, fewer than the recorded perpetual universe) and only inside that symbol's intervals in feature_scopes. A query must name its symbols and keep its window inside one interval for each; anything else is refused, never answered as absent. Inside an interval, a missing or zero-trade bar on either leg is absent.",
     "Any change to this descriptor is a result-encoding bump, because these lists join the serving cache and ETag keys."
   ]
 }
