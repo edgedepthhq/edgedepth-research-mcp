@@ -15,6 +15,7 @@
  *  - the confirm gate is expressed as tool-contract TEXT (run_scan
  *    description), verbatim from the design doc.
  */
+import { registerHypothesisTools } from './hypotheses.js'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { preparationSchema } from './preparation.js'
@@ -58,7 +59,7 @@ export interface ToolContext {
 }
 
 type TextBlock = { type: 'text'; text: string }
-type ToolResult = { content: TextBlock[]; isError?: boolean; _meta?: Record<string, unknown> }
+export type ToolResult = { content: TextBlock[]; isError?: boolean; _meta?: Record<string, unknown> }
 
 /** Human approval remains a client responsibility on the exact-document API. */
 export const CONFIRM_GATE_CONTRACT =
@@ -618,6 +619,7 @@ const METERED_COMPUTE = {
 /** Registers the research tools on an McpServer. */
 export function registerResearchTools(server: McpServer, ctx: ToolContext): void {
   registerScreenshotTools(server, ctx, passthrough)
+  registerHypothesisTools(server, ctx, passthrough)
   // 1. list_features - the grounding tool.
   server.registerTool(
     'list_features',

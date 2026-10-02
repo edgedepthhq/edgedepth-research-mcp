@@ -13,7 +13,7 @@ Every result includes counts with denominators and a reproducibility key. Same k
 - **Measure outcomes without lookahead selection:** forward returns, MFE, and MAE are computed over all occurrences. Outcome fields cannot be used as filters.
 - **Compare matched and baseline populations:** deterministic cohort results put the matched distribution beside every other eligible predicate-false bucket.
 - **Audit and replay the evidence:** results carry a reproducibility key, and representative occurrences include authenticated web handoffs to the exact recorded market moment.
-- **Stay research-only:** no tool trades, modifies alerts, publishes reports, or writes account data. A fresh scan, cohort, or stratified computation can consume research allowance units; the annotations state that side effect explicitly.
+- **Stay research-only:** no tool trades, modifies alerts or publishes reports. The private Radar admin pilot can save account-owned hypotheses with the separate optional `research:hypotheses` permission. A fresh scan, cohort, or stratified computation can consume research allowance units; the annotations state that side effect explicitly.
 
 ## Choose a connection
 
@@ -141,7 +141,7 @@ so a client can attach it once instead of calling `list_features` every session.
 4. Wait for explicit human approval, then pass the same document to `run_scan`. Changes require a new proposal and confirmation. The exact-document API does not store a proposal ID or a human approval receipt; client consent is required, and a model-supplied flag is not proof. On the supporting web release (b68c744 or later), returned `rq` workbench links load editable proposals and wait for Run; navigation never authorizes computation.
 5. Answer the question first, preserving zero-match and inconclusive findings. Give matched/eligible counts, coverage exclusions, present/absent outcomes, both directions at the agreed horizon, and overlap/selection limitations. Read rates from `outcomes_summary`, which covers all occurrences. Page rows are examples, never the denominator. Each rung already carries its matched count and rate, the unconditional rate, and their ratio as `lift`: quote those, and quote the count beside the rate. No `lift` means no reference was available or the unconditional rate was zero; neither licenses estimating one.
 6. Read the appended unconditional same-scope reference when available. It is not matched, comparable, or a causal control.
-7. Return the full reproducibility key with the answer and one relevant next action: a returned replay, a changed assumption, or an existing report. Saving and alerts remain web actions. Each handoff states how far back it sits; replay reach is a per-account entitlement, so an old moment can be refused at the web surface even though the occurrence is real. Use `next_page` only with a cursor returned by the API.
+7. Return the full reproducibility key with the answer and one relevant next action: a returned replay, a changed assumption, or an existing report. General saved studies and alerts remain web actions; private Radar hypotheses use the optional workflow below. Each handoff states how far back it sits; replay reach is a per-account entitlement, so an old moment can be refused at the web surface even though the occurrence is real. Use `next_page` only with a cursor returned by the API.
 
 Example instruction for an MCP client:
 
@@ -203,7 +203,42 @@ and remain subject to the person's coverage and entitlement.
 | `run_stratified` | Partitions one matched population at its existing anchors into split-true, split-false, and split-absent outcome summaries. |
 | `outcome_first` | Starts from the MOVE instead of the setup: names an outcome (size, direction, horizon) and reports what the record was doing at five fixed offsets before every realised move like it. Each row carries two counted shares, the share before these moves and the share across every eligible minute in the same scope, plus the setup-first rerun that re-tests it the other way round. A descriptive read, never a rule search: a row is not a rule, a candidate or a finding, and the row order is display order. A scope with too few realised moves is refused with its counts and four adjustments, and a refusal spends nothing. Projected by default (`rows`, `full_rows`). |
 
-No tool can trade, change market state, publish, or modify account data. `run_scan`, `run_cohort`, `run_stratified` and `outcome_first` are annotated as metered computations because a fresh call can irreversibly consume an allowance unit. The other recorded-data tools are closed-world reads. `interpret_prose` is a free read that uses the configured external language interpreter.
+No tool can trade, change market state or publish. Only the private hypothesis tools modify account research history, with separate permission. `run_scan`, `run_cohort`, `run_stratified` and `outcome_first` are annotated as metered computations because a fresh call can irreversibly consume an allowance unit. The other recorded-data tools are closed-world reads. `interpret_prose` is a free read that uses the configured external language interpreter.
+
+## Private Radar hypothesis workflow (local addition)
+
+Requires the supporting web release, its optional API-key scope migration and
+Radar admin access. Web precedes MCP. Existing grants and keys gain no permission;
+request `research:hypotheses` alongside `research:read` and authorize a new grant,
+or explicitly select the hypothesis option when creating a key. Ordinary accounts
+remain denied. This is not a public release or hosted acceptance claim.
+
+- `get_hypothesis`: original observation (`event`), your saved record (`id`), or
+  your list (neither). `full: true` restores all receipt bodies. Reads run nothing.
+- `prepare_hypothesis`: exact editable draft, four requests, revision, plan hash
+  and an allowance estimate. No save, computation or approval is implied.
+- `save_hypothesis`: explicit private save at the known revision; existing source
+  and attempts stay immutable. Save Test/Keep/Reject without dropping failures.
+- `run_hypothesis`: after human approval of the exact proposal, freeze all four
+  requests and run the first. Use the returned continuation serially for the
+  remaining requests under that same approval. Stop when it is absent. After an
+  ambiguous timeout, read the saved history; running/unknown work is never retried.
+
+Both web and MCP use one account history. Counts come from native whole-result
+summaries. A+B is primary; A/B are diagnostics against the same input-eligible
+population, including matches. Samples can contain supporting and contradictory
+cases but never supply the denominator. One Binance USDT perpetual, six supported
+numeric fields; population also permits native daily price/OI crossings after
+its backend release. Outcome is +5% MFE within four hours, before costs/fills.
+Development is at most 31 days, separated by seven full days from reserved
+evaluation; anchors end by September 11, 2026. Reserved evaluation is never run.
+
+The server retains definitions, failures, response bytes, HTTP/allowance headers
+and reproducibility keys. Default output projects examples and omits raw receipts,
+with recovery stated. Imported browser evidence stays labeled caller-supplied.
+Storage and concurrency errors stop further work; reopening never computes.
+Existing metering remains: API computations can each consume allowance, cached
+work is free; the session UI retains its existing population-scan meter.
 
 ## Research contract
 

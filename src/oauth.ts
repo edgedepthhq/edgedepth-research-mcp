@@ -8,7 +8,7 @@ export const OAUTH_ISSUER =
   'https://app.edgedepth.com'
 export const PROTECTED_RESOURCE_METADATA_URL =
   'https://mcp.edgedepth.com/.well-known/oauth-protected-resource/mcp'
-export const MCP_SCOPES = ['research:read', 'research:interpret'] as const
+export const MCP_SCOPES = ['research:read', 'research:interpret', 'research:hypotheses'] as const
 export const OAUTH_INVALID_TOKEN_REASONS = [
   'access_token_malformed',
   'access_token_unknown',

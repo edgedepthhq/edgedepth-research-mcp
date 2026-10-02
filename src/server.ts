@@ -49,7 +49,7 @@ const INSTRUCTIONS =
   'For a pointed crypto move, use resolve_scope to obtain recorded sector membership and the explicit roster; do not broaden a blocked sector. ' +
   'For profitability questions, propose the separate run_trade_test execution rules and obtain explicit approval. Never substitute descriptive MFE/MAE or outcome rates for realized trade results. Preserve source measurement and setup continuity. ' +
   'When run_scan.measure is supplied, lead with selected_outcome, including its unavailable or zero state, before any default overview. ' +
-  'Saving and alerts are web actions, not MCP capabilities. On the supporting web release, ' +
+  'General saved studies and alerts remain web actions. The private Radar hypothesis pilot supports get_hypothesis, prepare_hypothesis, save_hypothesis and run_hypothesis; writes require the optional research:hypotheses scope and admin access. Follow returned continuations only for the unchanged human-approved four-request plan. Keep all failed attempts. Never infer validation or query reserved evaluation. On the supporting web release, ' +
   'returned workbench links load editable proposals; navigation never authorizes a scan. ' +
   'Scan-family results come back as a stated projection: rows are thinned examples and every ' +
   'removal is listed, so read counts and rates from counts and outcomes_summary, raise rows for ' +

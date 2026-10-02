@@ -49,6 +49,7 @@ describe('tool schema', () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'base_rate',
       'commonality',
+      'get_hypothesis',
       'get_investigation_bundle',
       'get_report',
       'ground_screenshots',
@@ -58,12 +59,15 @@ describe('tool schema', () => {
       'list_instruments',
       'next_page',
       'outcome_first',
+      'prepare_hypothesis',
       'prepare_study',
       'resolve_scope',
       'run_cohort',
+      'run_hypothesis',
       'run_scan',
       'run_stratified',
       'run_trade_test',
+      'save_hypothesis',
       'snapshot_at',
     ])
   })
@@ -98,6 +102,10 @@ describe('tool schema', () => {
       shape[t.name] = Object.keys(props).sort()
     }
     expect(shape).toEqual({
+      get_hypothesis: ['event', 'full', 'id'],
+      prepare_hypothesis: ['draft', 'event', 'id'],
+      save_hypothesis: ['draft', 'event', 'id', 'revision'],
+      run_hypothesis: ['continuation', 'proposal'],
       ground_screenshots: ['document'],
       investigate_move: ['document', 'event_id', 'family', 'full_sources', 'study'],
       list_features: ['compact', 'feature_ids', 'search'],
@@ -147,6 +155,10 @@ describe('tool schema', () => {
     const externalRead = { readOnlyHint: true, destructiveHint: false, openWorldHint: true }
     const meteredCompute = { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
     expect(annotations).toEqual({
+      get_hypothesis: closedRead,
+      prepare_hypothesis: closedRead,
+      save_hypothesis: { ...closedRead, readOnlyHint: false },
+      run_hypothesis: meteredCompute,
       ground_screenshots: closedRead,
       prepare_study: closedRead,
       resolve_scope: closedRead,
