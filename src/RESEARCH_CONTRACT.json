@@ -72,6 +72,7 @@
     "feature.oi_mcap_ratio",
     "feature.oi_velocity_pctrank",
     "feature.price_oi_ratio_cross_5m_v1",
+    "feature.price_oi_ratio_window_cross_5m_v1",
     "feature.range_pct_1h",
     "feature.realized_vol_1h",
     "feature.realized_vol_pctrank",
@@ -3038,7 +3039,7 @@
       "units": "signed_fraction"
     }
   },
-  "feature_count": 89,
+  "feature_count": 90,
   "recorded_only_features": [
     "feature.basis_change_1h",
     "feature.basis_pct",
@@ -3057,6 +3058,7 @@
     "feature.oi_conversion_1h",
     "feature.oi_mcap_ratio",
     "feature.price_oi_ratio_cross_5m_v1",
+    "feature.price_oi_ratio_window_cross_5m_v1",
     "feature.spot_perp_close_basis"
   ],
   "horizons": [
