@@ -280,7 +280,7 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
  */
 export const OUTCOME_FIRST_GRAMMAR = {
   schema_version: 'outcome_first_query.v1',
-  result_encoding: 'outcome_first_result.v2',
+  result_encoding: 'outcome_first_result.v3',
   kind: ['reached', 'finished'],
   direction: ['up', 'down'],
   magnitude_ladder: OUTCOME_LADDER,

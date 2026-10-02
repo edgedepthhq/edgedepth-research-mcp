@@ -2,7 +2,7 @@
   "result_encoding": "record_result.v7",
   "cohort_encoding": "cohort_result.v5",
   "stratified_encoding": "stratified_result.v4",
-  "outcome_first_encoding": "outcome_first_result.v2",
+  "outcome_first_encoding": "outcome_first_result.v3",
   "features": [
     "feature.amihud_illiq_1h",
     "feature.amihud_illiq_pctrank",
@@ -12,6 +12,15 @@
     "feature.book_imbalance",
     "feature.book_imbalance_pctrank",
     "feature.book_source",
+    "feature.bottoms_base_dist_pct_1d",
+    "feature.bottoms_capitulation_1d",
+    "feature.bottoms_depth_pct_1d",
+    "feature.bottoms_hours_since_break_1d",
+    "feature.bottoms_kind_1d",
+    "feature.bottoms_level_spread_1d",
+    "feature.bottoms_neck_dist_pct_1d",
+    "feature.bottoms_state_1d",
+    "feature.bottoms_width_days_1d",
     "feature.candle_body_15m",
     "feature.candle_body_1h",
     "feature.candle_compression_15m",
@@ -25,6 +34,42 @@
     "feature.candle_sweep_reclaim_1h",
     "feature.candle_upper_wick_15m",
     "feature.cascade_clustering_index",
+    "feature.coil_break_close_above_pct_1h",
+    "feature.coil_break_close_above_pct_4h",
+    "feature.coil_break_open_below_pct_1h",
+    "feature.coil_break_open_below_pct_4h",
+    "feature.coil_break_volume_multiple_1h",
+    "feature.coil_break_volume_multiple_4h",
+    "feature.coil_broken_dist_pct_1h",
+    "feature.coil_broken_dist_pct_4h",
+    "feature.coil_depth_pct_1h",
+    "feature.coil_depth_pct_4h",
+    "feature.coil_dominance_candles_1h",
+    "feature.coil_dominance_candles_4h",
+    "feature.coil_gap_ratio_1h",
+    "feature.coil_gap_ratio_4h",
+    "feature.coil_hours_since_break_1h",
+    "feature.coil_hours_since_break_4h",
+    "feature.coil_line_dist_pct_1h",
+    "feature.coil_line_dist_pct_4h",
+    "feature.coil_near_line_pct_1h",
+    "feature.coil_near_line_pct_4h",
+    "feature.coil_prior_rise_pct_1h",
+    "feature.coil_prior_rise_pct_4h",
+    "feature.coil_span_candles_1h",
+    "feature.coil_span_candles_4h",
+    "feature.coil_squeeze_1h",
+    "feature.coil_squeeze_4h",
+    "feature.coil_state_1h",
+    "feature.coil_state_4h",
+    "feature.coil_support_rise_pct_1h",
+    "feature.coil_support_rise_pct_4h",
+    "feature.coil_support_touches_1h",
+    "feature.coil_support_touches_4h",
+    "feature.coil_touches_1h",
+    "feature.coil_touches_4h",
+    "feature.coil_width_ratio_1h",
+    "feature.coil_width_ratio_4h",
     "feature.depth_ask_pull_max_1m",
     "feature.depth_bid_pull_max_1m",
     "feature.depth_cost_ask_100k_bps",
@@ -3040,12 +3085,57 @@
       "units": "signed_fraction"
     }
   },
-  "feature_count": 90,
+  "feature_count": 135,
   "recorded_only_features": [
     "feature.basis_change_1h",
     "feature.basis_pct",
     "feature.basis_pctrank_30d",
     "feature.book_source",
+    "feature.bottoms_base_dist_pct_1d",
+    "feature.bottoms_capitulation_1d",
+    "feature.bottoms_depth_pct_1d",
+    "feature.bottoms_hours_since_break_1d",
+    "feature.bottoms_kind_1d",
+    "feature.bottoms_level_spread_1d",
+    "feature.bottoms_neck_dist_pct_1d",
+    "feature.bottoms_state_1d",
+    "feature.bottoms_width_days_1d",
+    "feature.coil_break_close_above_pct_1h",
+    "feature.coil_break_close_above_pct_4h",
+    "feature.coil_break_open_below_pct_1h",
+    "feature.coil_break_open_below_pct_4h",
+    "feature.coil_break_volume_multiple_1h",
+    "feature.coil_break_volume_multiple_4h",
+    "feature.coil_broken_dist_pct_1h",
+    "feature.coil_broken_dist_pct_4h",
+    "feature.coil_depth_pct_1h",
+    "feature.coil_depth_pct_4h",
+    "feature.coil_dominance_candles_1h",
+    "feature.coil_dominance_candles_4h",
+    "feature.coil_gap_ratio_1h",
+    "feature.coil_gap_ratio_4h",
+    "feature.coil_hours_since_break_1h",
+    "feature.coil_hours_since_break_4h",
+    "feature.coil_line_dist_pct_1h",
+    "feature.coil_line_dist_pct_4h",
+    "feature.coil_near_line_pct_1h",
+    "feature.coil_near_line_pct_4h",
+    "feature.coil_prior_rise_pct_1h",
+    "feature.coil_prior_rise_pct_4h",
+    "feature.coil_span_candles_1h",
+    "feature.coil_span_candles_4h",
+    "feature.coil_squeeze_1h",
+    "feature.coil_squeeze_4h",
+    "feature.coil_state_1h",
+    "feature.coil_state_4h",
+    "feature.coil_support_rise_pct_1h",
+    "feature.coil_support_rise_pct_4h",
+    "feature.coil_support_touches_1h",
+    "feature.coil_support_touches_4h",
+    "feature.coil_touches_1h",
+    "feature.coil_touches_4h",
+    "feature.coil_width_ratio_1h",
+    "feature.coil_width_ratio_4h",
     "feature.depth_ask_pull_max_1m",
     "feature.depth_bid_pull_max_1m",
     "feature.depth_cost_ask_100k_bps",
@@ -3192,6 +3282,16 @@
         "value": 0.1
       }
     ],
+    "feature.bottoms_neck_dist_pct_1d": [
+      {
+        "label": "near",
+        "op": "between",
+        "value": [
+          -0.02,
+          0.02
+        ]
+      }
+    ],
     "feature.candle_compression_15m": [
       {
         "label": "low",
@@ -3247,6 +3347,46 @@
         "label": "high",
         "op": "gte",
         "value": 0.5
+      }
+    ],
+    "feature.coil_broken_dist_pct_1h": [
+      {
+        "label": "near",
+        "op": "between",
+        "value": [
+          -0.01,
+          0.01
+        ]
+      }
+    ],
+    "feature.coil_broken_dist_pct_4h": [
+      {
+        "label": "near",
+        "op": "between",
+        "value": [
+          -0.01,
+          0.01
+        ]
+      }
+    ],
+    "feature.coil_line_dist_pct_1h": [
+      {
+        "label": "near",
+        "op": "between",
+        "value": [
+          -0.03,
+          0
+        ]
+      }
+    ],
+    "feature.coil_line_dist_pct_4h": [
+      {
+        "label": "near",
+        "op": "between",
+        "value": [
+          -0.03,
+          0
+        ]
       }
     ],
     "feature.desc_resistance_broken_dist_atr": [
