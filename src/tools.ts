@@ -1312,6 +1312,26 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     },
   )
 
+  server.registerTool(
+    'get_investigation_assessment',
+    {
+      title: 'Read the saved interpretation of a move',
+      description: 'Use this when the user wants the saved interpretation of a move by publication id. Returns the same explanation, supporting and challenging evidence, alternatives, next checks, exact market/window/as-of, source revisions and evidence gaps used by web pages and channel drafts. Optional edition pins the expected release; stop on 409 (changed) or 410 (corrected), never substitute newer evidence silently. This does not create an assessment, call an LLM, compute comparisons, consume study allowance or publish. Do not use this as causal proof, a forecast or a validated trading lesson. Use get_investigation_bundle for underlying recorded evidence; propose new studies separately with explicit approval.',
+      inputSchema: {
+        id: z.string().regex(/^observation-[a-z0-9]{2,32}-[\p{Ll}\p{Lo}\p{N}]{2,32}-\d{13}$/u).describe('Publication id from a saved investigation URL.'),
+        edition: z.string().regex(/^[a-f0-9]{64}$/).optional().describe('Exact expected released edition hash, if already known.'),
+      },
+      annotations: CLOSED_READ,
+    },
+    async ({ id, edition }) => {
+      const key = ctx.getKey()
+      if (!key) return noKey()
+      return passthrough(await apiRequest(ctx.apiBase, {
+        method: 'GET', path: `/investigation-assessment?${new URLSearchParams({ id, ...(edition ? { edition } : {}) })}`, key,
+      }))
+    },
+  )
+
   // 7. commonality - via the SHARED web endpoint (decision 7).
   server.registerTool(
     'commonality',

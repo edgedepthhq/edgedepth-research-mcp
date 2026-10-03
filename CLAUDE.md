@@ -29,3 +29,12 @@ absence/refusal/unknown completion; reopening never retries. Preserve negative
 attempts, missingness, native denominators, receipts and reserved-date boundaries.
 No evaluation-period execution, alerts, trades, publication or deployed claim.
 See README private workflow and web docs/RADAR_HYPOTHESES.md.
+
+
+## Shared saved assessment (2026-10-03, local)
+
+get_investigation_assessment reads the web-owned released assessment and exact
+scope/evidence metadata. No model, compute, new publication or private draft access.
+Preserve 409 edition-change and 410 correction refusals. Deploy web reader first.
+Tests: investigation-assessment and tool schema; current release version is unchanged
+until an authorized release. Owner: research-surface-usability.

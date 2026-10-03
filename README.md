@@ -556,3 +556,18 @@ restores the detailed outcome view. The widget retains complete evidence. No eng
 request, canonical hash, metering or baseline budget changes. Text-format and horizon
 changes have distinct projection ETags. Cohort, stratified and continuation text
 retain their existing projections in this bounded follow-up.
+
+
+## Saved interpretation of a move (2026-10-03, local)
+
+`get_investigation_assessment({id, edition?})` reads the existing released assessment
+used by investigation pages and channel drafts. The publication id comes from a
+`/research/investigate/publication/<id>` link. This is distinct from the SHA256 bundle
+id accepted by `get_investigation_bundle`. The result retains the exact market,
+window/as-of, mode, evidence references, gaps, comparison availability and edition.
+A pinned edition that changed returns 409; corrected evidence returns 410. Stop and
+reopen the publication; never silently apply another edition to the original question.
+Private drafts are not exposed. This read uses `research:read`, spends no study
+allowance and does not generate an assessment or call a model. The host may interpret
+its evidence, preserving uncertainty; a cited measurement is not proof of causality.
+Deploy the web `/api/v1/research/investigation-assessment` reader before this tool.
