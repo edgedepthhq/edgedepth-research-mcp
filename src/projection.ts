@@ -497,7 +497,7 @@ export function projectRegistry(raw: string, opts: RegistryProjection): LeanResu
 }
 
 /* ── The outcome-first door ──────────────────────────────────────────
-   outcome_first_result.v1 (task outcome-first-door; the engine side is
+   outcome_first_result (task outcome-first-door; the engine side is
    internal/research/outcome_first.go). Its shape is rows x offsets: one
    row per band per lead-up offset, each carrying a whole setup-first
    research_query.v2 rerun document, which is roughly 150 rows and the

@@ -68,7 +68,9 @@ const INSTRUCTIONS =
   'outcome_first starts from the MOVE instead of the setup and is a DESCRIPTIVE READ, never a ' +
   'candidate list: it searches no rule space and claims no survivor. Every row it returns is ' +
   'selected on the outcome and carries two counted shares, and the row order is the gap between ' +
-  'them, which is display order and not a ranking. Never present a row as a rule, a finding or ' +
+  'them, which is display order and not a ranking. Its third share, before_opposite_moves, counts ' +
+  'the same reading before the same move in the other direction; a reading about as common there ' +
+  'describes how far price moved, not which way. Never present a row as a rule, a finding or ' +
   'something that works, and run the setup-first rerun through run_scan before quoting any rate ' +
   'from it; that rerun asks how often the move followed the condition. It remains exploratory on ' +
   'the same dates. Freeze the condition and check a separate period before claiming validation. ' +

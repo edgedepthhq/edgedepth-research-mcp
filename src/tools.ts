@@ -1596,7 +1596,11 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'minutes before every move like it. It returns the outcome population with its ' +
         'denominators, a feasibility verdict, and one row per reading per lead-up offset carrying ' +
         'TWO counted shares: how often that reading sat outside its usual band before these ' +
-        'moves, and how often it did so across every eligible minute in the same scope. ' +
+        'moves, and how often it did so across every eligible minute in the same scope. Each row ' +
+        'also counts the reading before the same move in the other direction ' +
+        '(before_opposite_moves, null when that population is below the floor): a reading about ' +
+        'as common there describes how far price moved, not which way, so never read it as ' +
+        'direction. ' +
         'Every row is labelled selected on the outcome. A row is NOT a rule, a candidate, a ' +
         'finding or a predictor, and the row order is the gap between those two shares, which is ' +
         'display order and not a ranking: never present a row as something that works. The ' +

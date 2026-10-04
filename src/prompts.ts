@@ -280,7 +280,7 @@ export function registerResearchPrompts(server: McpServer, ctx: ToolContext): vo
  */
 export const OUTCOME_FIRST_GRAMMAR = {
   schema_version: 'outcome_first_query.v1',
-  result_encoding: 'outcome_first_result.v1',
+  result_encoding: 'outcome_first_result.v2',
   kind: ['reached', 'finished'],
   direction: ['up', 'down'],
   magnitude_ladder: OUTCOME_LADDER,
@@ -298,5 +298,5 @@ export const OUTCOME_FIRST_GRAMMAR = {
     note: 'A scope under the floor is REFUSED with its exact counts and four adjustments, and the refusal spends no allowance. One market always refuses.',
   },
   reading:
-    'A descriptive read over the population where the outcome held, never a rule search. Every row is selected on the outcome and carries two counted shares plus a setup-first rerun; the rerun counts how often the move followed the condition and remains exploratory on the same period.',
+    'A descriptive read over the population where the outcome held, never a rule search. Every row is selected on the outcome and carries three counted shares (before these moves, before the same move in the other direction, and usually) plus a setup-first rerun; a reading about as common before the opposite move describes how far price moved, not which way; the rerun counts how often the move followed the condition and remains exploratory on the same period.',
 } as const

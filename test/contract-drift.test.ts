@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { OUTCOME_FIRST_GRAMMAR } from '../src/prompts.js'
 
 /**
  * THE ANTI-DRIFT GATE (MCP half).
@@ -20,6 +21,7 @@ import { join } from 'node:path'
  */
 const contract = JSON.parse(readFileSync(join(process.cwd(), 'src', 'RESEARCH_CONTRACT.json'), 'utf8')) as {
   result_encoding: string
+  outcome_first_encoding: string
   metrics: string[]
   gte_thresholds: number[]
   lte_thresholds: number[]
@@ -38,6 +40,10 @@ describe('research contract drift (MCP invocation copy vs the engine artifact)',
     expect(toolsSource).not.toMatch(/record_result\.v\d+/)
     expect(toolsSource).not.toMatch(/\d+-feature setup vectors/)
     expect(toolsSource).not.toMatch(/threshold ladder runs|ladder to \+\//i)
+  })
+
+  it('describes the outcome-first encoding the engine serves', () => {
+    expect(OUTCOME_FIRST_GRAMMAR.result_encoding).toBe(contract.outcome_first_encoding)
   })
 
   it('mirror is byte-identical to the engine artifact when both are present', () => {
