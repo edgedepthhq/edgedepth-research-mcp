@@ -48,11 +48,13 @@ describe('tool schema', () => {
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
       'base_rate',
+      'cancel_strategy',
       'commonality',
       'get_hypothesis',
       'get_investigation_assessment',
       'get_investigation_bundle',
       'get_report',
+      'get_strategy',
       'ground_screenshots',
       'interpret_prose',
       'investigate_move',
@@ -61,14 +63,17 @@ describe('tool schema', () => {
       'next_page',
       'outcome_first',
       'prepare_hypothesis',
+      'prepare_strategy',
       'prepare_study',
       'resolve_scope',
       'run_cohort',
       'run_hypothesis',
       'run_scan',
+      'run_strategy',
       'run_stratified',
       'run_trade_test',
       'save_hypothesis',
+      'save_strategy',
       'snapshot_at',
     ])
   })
@@ -103,6 +108,11 @@ describe('tool schema', () => {
       shape[t.name] = Object.keys(props).sort()
     }
     expect(shape).toEqual({
+      get_strategy: ['catalog', 'full', 'id', 'result'],
+      prepare_strategy: ['document'],
+      save_strategy: ['document', 'name', 'revisit_of'],
+      run_strategy: ['attempt', 'confirmation', 'document', 'name', 'revisit_of', 'units'],
+      cancel_strategy: ['id'],
       get_hypothesis: ['event', 'full', 'id'],
       prepare_hypothesis: ['draft', 'event', 'id'],
       save_hypothesis: ['draft', 'event', 'id', 'revision'],
@@ -157,6 +167,11 @@ describe('tool schema', () => {
     const externalRead = { readOnlyHint: true, destructiveHint: false, openWorldHint: true }
     const meteredCompute = { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
     expect(annotations).toEqual({
+      get_strategy: closedRead,
+      prepare_strategy: closedRead,
+      save_strategy: { ...closedRead, readOnlyHint: false },
+      run_strategy: meteredCompute,
+      cancel_strategy: { ...closedRead, readOnlyHint: false },
       get_hypothesis: closedRead,
       prepare_hypothesis: closedRead,
       save_hypothesis: { ...closedRead, readOnlyHint: false },

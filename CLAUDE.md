@@ -38,3 +38,13 @@ scope/evidence metadata. No model, compute, new publication or private draft acc
 Preserve 409 edition-change and 410 correction refusals. Deploy web reader first.
 Tests: investigation-assessment and tool schema; current release version is unchanged
 until an authorized release. Owner: research-surface-usability.
+
+## Private strategy studies (2026-10-11, local)
+
+get/prepare/save/run/cancel_strategy expose web's private trade_query.v2 workflow.
+Read + interpret defaults remain; saving/running/cancelling require optional
+research:strategies and current Research entitlement. Exact human confirmation
+precedes allowance reservation and background work. Reopening never runs.
+See README's strategy section and web docs/RESEARCH_STRATEGIES.md. Backend then
+web migration/application precede MCP. Current package version stays unchanged
+until James authorizes release. Full 216-test suite passes locally.

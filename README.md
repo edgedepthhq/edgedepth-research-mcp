@@ -571,3 +571,55 @@ Private drafts are not exposed. This read uses `research:read`, spends no study
 allowance and does not generate an assessment or call a model. The host may interpret
 its evidence, preserving uncertainty; a cited measurement is not proof of causality.
 Deploy the web `/api/v1/research/investigation-assessment` reader before this tool.
+
+## Private strategy studies (local extension, pending release)
+
+Research subscribers can use the same versioned long-baseline, persistence and
+execution study as the web's `/research/strategies` workspace. This first v2
+contract supports long first-hourly base breaks over qualified five-minute OHLC,
+quote volume and actual settled funding. It does not imply rich-feature or tick
+replay coverage over the same dates. Legacy run_trade_test remains available.
+
+- `get_strategy({catalog:true})` discovers exact source revision, eligible markets
+  and limits. With no arguments it lists private definitions/trials; `id` reads
+  job progress, and `id,result:true` reads a completed immutable result.
+- `prepare_strategy({document})` validates and estimates an explicit trade_query.v2
+  without saving or running. Use the web exact-definition view or tool schema
+  description to build all required fields. Numeric examples are not validation.
+- `save_strategy({document,name,revisit_of?})` saves an account-owned definition.
+  A later evidence revision links its predecessor without overwriting results.
+- `run_strategy({document,confirmation,attempt,units,name,revisit_of?})` requires
+  explicit human approval of the exact returned definition, scope, costs,
+  funding convention and estimate. Submit all returned values unchanged. A model
+  assertion or hash is not consent. Poll get_strategy for progress; never call a
+  queued response a finished result.
+- `cancel_strategy({id})` requests owner cancellation. Wait for terminal cancelled
+  status; its attempt remains in history. No deletion or monitoring change.
+
+Mutations need optional `research:strategies` OAuth/key permission, in addition to
+Research entitlement. Existing defaults stay read/interpret. Reads/estimates use
+research:read; completed private evidence remains readable after expiry. Fresh
+work reserves allowance once per attempt, duplicate/cached reads are free and
+known failed/cancelled attempts refund. Ambiguous completion retains its same
+reservation: read the original hash before retrying. A terminal retry needs a
+fresh estimate and explicit approval. No tool arms live monitoring or trades.
+
+Every policy uses the same opportunity population, decision and absolute horizon.
+A 2.5% pullback is below the recent completed high frozen at order submission;
+reclaim requires a completed close and next-bar fill. No-fill/skipped rows count
+as known zero P&L, while unknown price/funding rows remain excluded explicitly.
+Funding uses the labelled LB1 fixed-notional settlement approximation. Risk units
+and exposure are not portfolio returns. Negative results remain valid evidence.
+
+By default get_strategy(result:true) preserves every whole-result summary, paired
+comparison, coverage, exact query and reproducibility field, with only 10 example
+opportunities/trades. Those examples are not the denominator. `full:true` restores
+the complete canonical response and ETag; compact projection removes that ETag.
+
+Release order and acceptance: backend `docs/RESEARCH_STRATEGIES_V2.md`, then web
+`docs/RESEARCH_STRATEGIES.md`, then MCP. This implementation reproduces all 14,563
+LB1 opportunities with zero mismatches across 320,262 journal comparisons and
+separately tests conditional entry through the public handlers. The bootstrap is
+explicitly versioned rather than claiming NumPy interval-byte parity. Local web
+browser checks use labelled fixtures; deployed-account acceptance and willingness
+to pay still need validation. No production release is implied by these checks.

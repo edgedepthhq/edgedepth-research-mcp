@@ -15,6 +15,7 @@
  *  - the confirm gate is expressed as tool-contract TEXT (run_scan
  *    description), verbatim from the design doc.
  */
+import { registerStrategyTools } from './strategies.js'
 import { registerHypothesisTools } from './hypotheses.js'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
@@ -620,6 +621,7 @@ const METERED_COMPUTE = {
 export function registerResearchTools(server: McpServer, ctx: ToolContext): void {
   registerScreenshotTools(server, ctx, passthrough)
   registerHypothesisTools(server, ctx, passthrough)
+  registerStrategyTools(server, ctx, passthrough)
   // 1. list_features - the grounding tool.
   server.registerTool(
     'list_features',
