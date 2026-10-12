@@ -456,6 +456,15 @@ examples. full_trades:true restores all canonical bytes. Projection-specific ETa
 prevent revalidation across these display modes; neither mode changes the rules,
 complete-result counts, reproducibility key or computation charge.
 
+Both modes open with payoff lines: expectancy after fees and slippage, wins and
+losses, average win and loss with counts, wins and losses added up, the largest
+win's share of winning profit, exits by reason, unavailable and skipped counts,
+and the exclusions (funding; holds never exceed 1440 minutes). The largest-win
+share and exit counts come from the complete journal before rows are trimmed, and
+are omitted, never estimated, when that journal does not reproduce the engine's
+win and loss counts. A network-free payoff view (`ui://edgedepth/trade-payoff-v1.html`)
+shows the same facts: the verdict, paired win/loss bars, the rules and exclusions.
+
 ## Stored investigation evidence (local, pending release)
 
 `get_investigation_bundle` reads an existing SHA256 bundle ID through the same
@@ -512,9 +521,14 @@ outcome, the summary shows both closing directions and labels the view explorato
 
 Changing the horizon or move labels the summary as exploration. Return to stated
 outcome restores those two controls without a request. Stratified summaries name
-the viewed group. Both directions, exact reference counts and lift remain in an
-expandable breakdown; the histogram and path ladder remain visible. Wording is
-deterministic from completed counts, with no new model call or engine computation.
+the viewed group. Wording is deterministic from completed counts, with no new
+model call or engine computation.
+
+The default view is the verdict, the "Is there an edge?" box and one picture: for
+the chosen move size, each direction after the setup beside the usual rate (the
+reference), as paired bars on one scale with exact counts. It avoids MFE, lift and
+reference jargon. The counts in words, both directions with lift, the histogram
+and the path ladder sit in one collapsed Details disclosure.
 
 The histogram retains all recorded buckets. Hover, focus or tap highlights one
 band in mint and keeps its exact counts/rates in the readout below the chart.

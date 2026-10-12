@@ -1,10 +1,9 @@
 import { readFileSync } from 'node:fs'
-import { runInNewContext } from 'node:vm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { scanChartMeta, SCAN_CHART_URI, studyHeading } from '../src/scanChart.js'
 import { SCAN_CHART_HTML } from '../src/scanChartHtml.js'
 import type { ApiResponse } from '../src/apiClient.js'
-import { connectClient, texts } from './helpers.js'
+import { connectClient, texts, widgetHost } from './helpers.js'
 
 // Verbatim aggregate fields from the three P4 cached results, 2026-09-28.
 // Only page data and metrics outside 1h/24h are omitted. Hashes pin the source.
@@ -21,44 +20,7 @@ const metric = { present: 100, absent: 2,
 const scan = { counts: { total_matching: 102, symbols_scanned: 2 },
   outcomes_summary: { metrics: { fwd_ret_24h: metric, mfe_24h: metric, mae_24h: metric } } }
 
-// Executes the shipped inline JS, including both host bridges and control
-// handlers. A small DOM double keeps the regression test dependency-free;
-// real responsive browser verification is recorded in the task evidence.
-class Element {
-  children: Element[] = []
-  style: Record<string, string> = {}
-  attrs: Record<string, string> = {}
-  value = ''; hidden = false; className = ''; ownText = ''; title = ''; type = ''
-  tabIndex = -1
-  onclick?: () => void; onchange?: () => void; onfocus?: () => void; onmouseenter?: () => void
-  onkeydown?: (event: { key: string; preventDefault: () => void }) => void
-  constructor(public tagName: string) {}
-  get textContent(): string { return this.ownText + this.children.map(c => c.textContent).join(' ') }
-  set textContent(value: string) { this.ownText = value; this.children = [] }
-  appendChild(child: Element) { this.children.push(child); return child }
-  replaceChildren() { this.children = []; this.ownText = '' }
-  setAttribute(key: string, value: string) { this.attrs[key] = value }
-  getAttribute(key: string) { return this.attrs[key] }
-  focus() { this.onfocus?.() }
-  addEventListener() {}
-}
-function host(metadata?: unknown, openai = false) {
-  const elements = new Map<string, Element>()
-  for (const match of SCAN_CHART_HTML.matchAll(/<(\w+)[^>]*\bid="([^"]+)"[^>]*>/g)) {
-    const e = new Element(match[1]!); e.hidden = match[0].includes('hidden'); elements.set(match[2]!, e)
-  }
-  const listeners: Record<string, (event?: any) => void> = {}
-  const parent = { postMessage: vi.fn() }
-  const window: any = { parent, addEventListener: (name: string, fn: any) => { listeners[name] = fn } }
-  if (openai) window.openai = { toolResponseMetadata: metadata }
-  const document = { getElementById: (id: string) => elements.get(id), createElement: (tag: string) => new Element(tag),
-    querySelectorAll: () => [], body: { scrollHeight: 900 } }
-  runInNewContext(SCAN_CHART_HTML.match(/<script>([\s\S]*?)<\/script>/)![1]!, { document, window })
-  const receive = (result: any, source = parent) => listeners.message!({ source,
-    data: { jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: result } })
-  if (!openai && metadata) receive({ _meta: metadata })
-  return { get: (id: string) => elements.get(id)!, receive, window, listeners, parent }
-}
+const host = (metadata?: unknown, openai = false) => widgetHost(SCAN_CHART_HTML, metadata, openai)
 afterEach(() => vi.unstubAllGlobals())
 
 describe('P4 recorded evidence and outcome defaults', () => {
@@ -300,6 +262,7 @@ it.each(['run_scan', 'run_cohort', 'run_stratified'])('%s attaches evidence with
       expect(ui.get('referenceNote').textContent).toContain('excludes matching minutes')
       expect(ui.get('glanceComparison').textContent).toContain('where the condition was false')
       expect(ui.get('glanceComparison').textContent).toContain('recorded rates are equal')
+      expect(ui.get('pairs').textContent).toContain('Without the setup')
     }
     if (name === 'run_stratified') {
       expect(ui.get('group').children).toHaveLength(3)
@@ -308,6 +271,7 @@ it.each(['run_scan', 'run_cohort', 'run_stratified'])('%s attaches evidence with
       expect(ui.get('referenceNote').textContent).toContain('Unavailable for this scope')
       expect(ui.get('glanceTitle').textContent).toContain('Split reading missing')
       expect(ui.get('glanceComparison').textContent).toContain('no reference comparison is supplied')
+      expect(ui.get('pairsNote').textContent).toContain('Group menu')
     }
     const resource = await client.readResource({ uri: SCAN_CHART_URI })
     expect(resource.contents[0]!.text).toBe(SCAN_CHART_HTML)
@@ -354,5 +318,52 @@ describe('plain verdict before the counts', () => {
     const few = study(5, 4); few.outcomes_summary.metrics.mfe_24h.present = 20; few.outcomes_summary.metrics.mae_24h.present = 20
     ui.receive({ _meta: scanChartMeta(response(few), baseline(210, 100), touchUp) })
     expect(ui.get('verdict').textContent).toContain('Too few outcomes to judge (20 measured)')
+  })
+})
+
+describe('one plain picture before the details', () => {
+  const touchUp = { kind: 'touch', direction: 'up', magnitude: 0.3, horizon: '24h' } as const
+  const sided = (present: number, up: number, down: number) => ({ present, absent: 0,
+    thresholds: [{ op: 'gte', threshold: 0.3, count: up }, { op: 'lte', threshold: -0.3, count: down }] })
+  const study = { counts: { total_matching: 1000, symbols_scanned: 70 },
+    outcomes_summary: { metrics: { mfe_24h: sided(1000, 31, 0), mae_24h: sided(1000, 0, 18) } } }
+  const baseline = response({ baseline: { metrics: { mfe_24h: sided(10000, 210, 0), mae_24h: sided(10000, 0, 100) } } })
+  it('pairs each direction with the usual rate, exact counts beside one shared scale', () => {
+    const ui = host(scanChartMeta(response(study), baseline, touchUp))
+    const [up, down] = ui.get('pairs').children
+    expect(up!.className).toContain('chosen')
+    expect(up!.children[0]!.textContent).toBe('Rose at least 30% at some point within 24h')
+    expect(up!.children[1]!.textContent).toContain('After the setup')
+    expect(up!.children[1]!.textContent).toContain('31 of 1,000 (3.1%)')
+    expect(up!.children[2]!.textContent).toContain('Usual')
+    expect(up!.children[2]!.textContent).toContain('210 of 10,000 (2.1%)')
+    expect(down!.children[0]!.textContent).toBe('Fell at least 30% at some point within 24h')
+    expect(down!.textContent).toContain('18 of 1,000 (1.8%)')
+    expect(down!.textContent).toContain('100 of 10,000 (1.0%)')
+    expect(up!.children[1]!.children[1]!.children[0]!.style.width).toBe('100%')
+    expect(Number.parseFloat(up!.children[2]!.children[1]!.children[0]!.style.width)).toBeCloseTo(0.021 / 0.031 * 100, 6)
+    expect(ui.get('pairsNote').textContent).toContain('Usual: every recorded minute in the same markets and dates')
+  })
+  it('keeps jargon out of the default view and the dense charts in a closed Details', () => {
+    const ui = host(scanChartMeta(response(study), baseline, touchUp))
+    const visible = ['glanceTitle', 'verdict', 'verdictEdge', 'pairsTitle', 'pairs', 'pairsNote', 'glanceCaveat', 'defaultNote', 'limitations']
+      .map(id => ui.get(id).textContent).join(' ')
+    expect(visible).not.toMatch(/MFE|MAE|lift|reference/i)
+    const at = (marker: string) => SCAN_CHART_HTML.indexOf(marker)
+    expect(at('id="verdictNote"')).toBeLessThan(at('id="pairs"'))
+    expect(at('id="pairs"')).toBeLessThan(at('<details id="more">'))
+    for (const id of ['glanceAnswer', 'outcomes', 'histogram', 'ladder']) {
+      expect(at(`id="${id}"`)).toBeGreaterThan(at('<details id="more">'))
+      expect(at(`id="${id}"`)).toBeLessThan(at('<summary>Study definition'))
+    }
+  })
+  it('says why there is no usual bar instead of inventing one', () => {
+    const ui = host(scanChartMeta(response(study), timeout, touchUp))
+    expect(ui.get('pairs').children[0]!.children).toHaveLength(2)
+    expect(ui.get('pairsNote').textContent).toContain('timed out')
+    expect(ui.get('pairsNote').textContent).toContain('cannot say whether')
+    ui.get('threshold').value = ''; ui.get('threshold').onchange!()
+    expect(ui.get('pairs').children).toHaveLength(0)
+    expect(ui.get('pairsNote').textContent).toContain('Choose a move')
   })
 })

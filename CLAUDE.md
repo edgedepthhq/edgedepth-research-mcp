@@ -68,3 +68,18 @@ edge?" box pointing to a trade test. Prompted by a 2026-10-12 claude.ai
 recording where a newcomer could not read an answer from the charts. Tests:
 scanChart (verdict cases), scanText and workflow (instructions). 221 tests,
 typecheck and build pass. Package version unchanged; James releases.
+
+## Payoff and plain scan views (2026-10-12, local)
+
+Scan widget default view: verdict, "Is there an edge?" box, then one picture,
+"How often the move happened": per direction, "After the setup" beside "Usual"
+(cohorts: "Without the setup") as paired bars on one scale with exact counts. No
+MFE, lift or reference wording there; counts in words, lift cards, histogram and
+ladder sit in one collapsed Details. run_trade_test text opens with payoff lines
+(expectancy after costs, wins/losses, averages with counts, sums, largest win's
+share, exits, unavailable/skipped, funding and 1440-minute exclusions) and has a
+payoff view, ui://edgedepth/trade-payoff-v1.html. Largest-win share and exits come
+from the full journal before trimming and are omitted when it does not reproduce
+the engine's win/loss counts. Verified in a browser with pinned e0678e65 and the
+98c5ee06 journal. 227 tests, typecheck and build pass. Version unchanged; James
+releases with mcp-deploy.sh --server-only, then reconnects the connector.

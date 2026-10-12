@@ -21,7 +21,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { preparationSchema } from './preparation.js'
 import { compactReport } from './reportProjection.js'
-import { compactTradeResult } from './tradeProjection.js'
+import { compactTradeResult, tradePayoffLead, tradePayoffMeta, TRADE_PAYOFF_URI } from './tradeProjection.js'
 
 import { apiRequest, type ApiResponse } from './apiClient.js'
 import {
@@ -1488,12 +1488,13 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
     'run_trade_test',
     {
       title: 'Test explicit entry, stop and exit rules',
+      _meta: { ui: { resourceUri: TRADE_PAYOFF_URI }, 'openai/outputTemplate': TRADE_PAYOFF_URI },
       description: 'Use this when the user asks whether an approved setup was profitable under explicit trade rules. This is separate from descriptive run_scan outcomes. ' +
         'Require explicit human approval of the exact setup, roster, dates, direction, entry timing, stop, target/trail, hold, fees, slippage and overlap before running. ' +
         'Proposed defaults: next-minute open entry, 1% initial stop, no fixed target, 2% trailing distance from completed closes, 240-minute hold, 6 bps fee and 10 bps slippage per side, skip same-market signals until exit. Direction must be chosen explicitly. ' +
         'Explain stop gaps use the worse open, stop wins same-bar ambiguity, and trailing updates start next bar. Missing historical opens mean unavailable trades. ' +
         'A fresh run can consume allowance. Rules or scope changes require a new proposal and approval; a model flag is not approval. ' +
-        'Use complete-result summary for win/loss counts, average wins/losses and expectancy after fees/slippage. Funding is omitted, so never call returns fully net. ' +
+        'The result opens with payoff lines from the complete-result summary: expectancy after fees/slippage, wins/losses, average win/loss and the largest win\'s share of profit. Lead the answer with them. Funding is omitted, so never call returns fully net. ' +
         'These are event trades, not portfolio equity or leverage. Do not use MFE maxima as realized exits or promise profitability. ' +
         'Preserve original question, selected measurement and source investigation in source_measurement. Limits: explicit 1-100 markets, 31 days and 5000 signals. ' +
         'Alerts remain web-managed setup recurrences and never execute these rules.',
@@ -1515,7 +1516,12 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
       const res = await apiRequest(ctx.apiBase, { method: 'POST', path: '/trade-test', key,
         body: document, ifNoneMatch: full_trades ? if_none_match : unscopeEtag(if_none_match, 'trade_summary.v1') })
       const projected = full_trades ? res : compactTradeResult({ ...res, headers: { ...res.headers, etag: scopeEtag(res.headers.etag, 'trade_summary.v1') } })
-      return passthrough(projected, 'Read the unchanged request without If-None-Match for its cached trade result. No alert or trade was executed.')
+      const result = passthrough(projected, 'Read the unchanged request without If-None-Match for its cached trade result. No alert or trade was executed.')
+      // The payoff leads, derived from the complete result before rows are trimmed.
+      const lead = tradePayoffLead(res, document)
+      if (lead && result.content[0]) result.content[0] = text(lead + '\n' + result.content[0].text)
+      result._meta = tradePayoffMeta(res, document)
+      return result
     },
   )
 

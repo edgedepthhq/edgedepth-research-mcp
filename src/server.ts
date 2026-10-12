@@ -8,6 +8,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 import { registerResearchPrompts } from './prompts.js'
 import { registerScanChart } from './scanChart.js'
+import { registerTradePayoff } from './tradeProjection.js'
 import { SCREENSHOT_INSTRUCTIONS } from './screenshots.js'
 import { SERVER_NAME, SERVER_VERSION } from './version.js'
 import { registerResearchTools, type ToolContext } from './tools.js'
@@ -103,5 +104,6 @@ export function createResearchMcpServer(ctx: ToolContext): McpServer {
   registerResearchTools(server, ctx)
   registerResearchPrompts(server, ctx)
   registerScanChart(server)
+  registerTradePayoff(server)
   return server
 }

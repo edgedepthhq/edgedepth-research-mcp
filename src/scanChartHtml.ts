@@ -40,6 +40,16 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
   #glanceAnswer { font-size: 15px; font-weight: 500; line-height: 1.5; }
   #glanceComparison { font-size: 13px; }
   #glanceCaveat { margin-bottom: 0; }
+  #pairs { display: grid; gap: 14px; margin: 8px 0 10px; }
+  .pair { border-left: 2px solid var(--line); padding-left: 10px; min-width: 0; }
+  .pair.chosen { border-color: var(--accent); }
+  .pairLabel { margin: 0 0 4px; font-weight: 600; }
+  .pairRow { display: grid; grid-template-columns: 8.5em minmax(48px, 1fr) 14em; gap: 4px 10px; align-items: center; font-size: 13px; margin: 2px 0; }
+  .track { height: 12px; background: light-dark(#eef2f0, #1b2229); border-radius: 2px; }
+  .fill { display: block; height: 100%; min-width: 2px; background: var(--accent); border-radius: 2px; }
+  .fill.usual { background: var(--reference); }
+  .pairValue { text-align: right; }
+  #more > summary { font-size: 14px; font-weight: 600; margin-top: 8px; }
   option { color: var(--ink); background: var(--surface); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
@@ -75,6 +85,8 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     body { padding: 12px; }
     h2 { font-size: 17px; }
     #outcomes { grid-template-columns: 1fr; gap: 10px; }
+    .pairRow { grid-template-columns: 1fr auto; }
+    .track { grid-column: 1 / -1; grid-row: 2; }
     #histogram { gap: 1px; }
     th, td { padding: 6px 3px; }
   }
@@ -91,8 +103,11 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     <h3 id="glanceTitle">Result at a glance</h3>
     <p id="verdict" class="num" aria-live="polite" aria-atomic="true" hidden></p>
     <p id="verdictNote" hidden><strong>Is there an edge?</strong> <span id="verdictEdge"></span></p>
-    <p id="glanceAnswer" class="num" aria-live="polite" aria-atomic="true"></p>
-    <p id="glanceComparison" class="num"></p>
+  </section>
+  <section aria-labelledby="pairsTitle">
+    <h3 id="pairsTitle">How often the move happened</h3>
+    <div id="pairs" class="num"></div>
+    <p id="pairsNote" class="muted"></p>
     <p id="glanceCaveat" class="muted"></p>
   </section>
   <div class="controls">
@@ -102,11 +117,14 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     <button id="resetOutcome" type="button" hidden>Return to stated outcome</button>
   </div>
   <p id="defaultNote" class="muted"></p>
-  <details id="outcomeDetails">
-    <summary>Both directions and reference counts</summary>
-    <div id="outcomes" class="num"></div>
-    <p id="referenceNote" class="muted"></p>
-  </details>
+  <p id="limitations" class="muted"></p>
+  <details id="more">
+  <summary>Details: exact counts, the spread of closing returns, and how far price ran and fell</summary>
+  <p id="glanceAnswer" class="num"></p>
+  <p id="glanceComparison" class="num"></p>
+  <h3>Both directions beside the usual rate</h3>
+  <div id="outcomes" class="num"></div>
+  <p id="referenceNote" class="muted"></p>
   <h3 id="distributionTitle">Closing-return distribution</h3>
   <p id="counts" class="muted num"></p>
   <div class="legend">
@@ -121,7 +139,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
   <h3 id="ladderTitle">How far it ran / how far it fell</h3>
   <table id="ladder"></table>
   <p id="pathCounts" class="muted num"></p>
-  <p id="limitations" class="muted"></p>
+  </details>
   <details><summary>Study definition, coverage and evidence</summary>
     <p id="coverage" class="muted num"></p><p id="meter" class="muted"></p><pre id="details"></pre>
   </details>
@@ -246,13 +264,49 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
       : more(up) ? "Leans up." : more(down) ? "Leans down." : "No clear difference from usual.";
     say("verdict", head + " " + part(up) + "; " + part(down) + ".");
   }
+  // One plain picture for the chosen move size: each direction after the setup
+  // beside the usual rate, exact counts beside every bar, one shared scale.
+  function pairs(g, h, t) {
+    $("pairs").replaceChildren();
+    if (!Number.isFinite(t)) { say("pairsNote", "Choose a move below to compare it with the usual rate."); return; }
+    var choice = evidence.measure, touch = !!choice && choice.kind === "touch";
+    var usual = !evidence.referenceReason && Object.keys(evidence.referenceMetrics).length > 0;
+    var share = function (r, m) { return r && valid(m) && m.present > 0 ? r.count / m.present : null; };
+    var blocks = (choice && choice.direction === "down" ? ["down", "up"] : ["up", "down"]).map(function (direction) {
+      var v = outcomeReading(g, h, t, direction, touch);
+      return { direction: direction, rows: [[evidence.groups.length > 1 ? g.label : "After the setup", v.r, v.m, false]]
+        .concat(usual ? [[evidence.referenceKind === "predicate_false" ? "Without the setup" : "Usual", v.ref, v.b, true]] : []) };
+    });
+    var max = 0;
+    blocks.forEach(function (b) { b.rows.forEach(function (r) { max = Math.max(max, share(r[1], r[2]) || 0); }); });
+    blocks.forEach(function (b, i) {
+      var block = el("div", undefined, "pair" + (choice && i === 0 ? " chosen" : ""));
+      block.appendChild(el("p", touch ? (b.direction === "up" ? "Rose" : "Fell") + " at least " + pct(t) + " at some point within " + h
+        : "Closed at least " + pct(t) + " " + (b.direction === "up" ? "higher" : "lower") + " after " + h, "pairLabel"));
+      b.rows.forEach(function (r) {
+        var row = el("div", undefined, "pairRow"), track = el("span", undefined, "track"), s = share(r[1], r[2]);
+        track.setAttribute("aria-hidden", "true");
+        if (s > 0) { var fill = el("span", undefined, "fill" + (r[3] ? " usual" : "")); fill.style.width = (s / max * 100) + "%"; track.appendChild(fill); }
+        row.appendChild(el("span", r[0])); row.appendChild(track);
+        row.appendChild(el("span", !r[1] ? "Exact count unavailable" : !r[2].present ? "No measured outcomes"
+          : fmt(r[1].count) + " of " + fmt(r[2].present) + " (" + percent(r[1].count, r[2].present) + ")", "pairValue"));
+        block.appendChild(row);
+      });
+      $("pairs").appendChild(block);
+    });
+    say("pairsNote", usual ? (evidence.referenceKind === "predicate_false"
+        ? "Without the setup: the other recorded minutes in the same markets and dates, where the condition was false."
+        : "Usual: every recorded minute in the same markets and dates, setup minutes included.") + " Bars share one scale."
+      : evidence.referenceKind === "none" ? "Split groups have no usual rate here. Use the Group menu to compare them."
+      : "The usual rate is unavailable" + (evidence.referenceTimedOut ? " (it timed out)" : "") + ", so this cannot say whether the move happened more often than usual.");
+  }
   function atGlance(g, h, t) {
     var choice = evidence.measure, touch = choice && choice.kind === "touch";
     var changed = choice && (h !== choice.horizon || t !== choice.magnitude);
     $("resetOutcome").hidden = !changed;
     say("glanceTitle", "Result at a glance · " + (choice ? changed ? "Exploring another outcome" : "Stated outcome" : "Exploring closing returns")
       + (evidence.groups.length > 1 ? " · " + g.label : ""));
-    say("glanceAnswer", "Choose a move to read its outcome counts. The full distribution is below.");
+    say("glanceAnswer", "Choose a move to read its outcome counts.");
     say("glanceComparison", ""); say("glanceCaveat", "No outcome was specified; this view is exploratory.");
     if (!Number.isFinite(t)) return;
     var directions = choice ? [choice.direction] : ["up", "down"];
@@ -376,7 +430,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     var pivot = rungs.findIndex(function (x) { return x >= (Number.isFinite(t) ? t : 0.1); });
     var start = Math.max(0, Math.min((pivot < 0 ? rungs.length : pivot) - 2, rungs.length - 5));
     $("ladder").replaceChildren();
-    tableRow($("ladder"), ["Move", "Ran up (MFE)", "Fell down (MAE)"], true);
+    tableRow($("ladder"), ["Move", "Ran up at least (MFE)", "Fell at least (MAE)"], true);
     rungs.slice(start, start + 5).forEach(function (size) {
       var u = rung(up, "gte", size), d = rung(down, "lte", -size);
       tableRow($("ladder"), [pct(size), u ? rate(u.count, up.present) : "Unavailable",
@@ -385,17 +439,18 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     say("ladderTitle", "How far it ran / how far it fell · within " + h);
     say("pathCounts", "Up: " + (valid(up) ? fmt(up.present) + " present, " + fmt(up.absent) + " missing" : "unavailable") +
       ". Down: " + (valid(down) ? fmt(down.present) + " present, " + fmt(down.absent) + " missing" : "unavailable") +
-      ". Recorded extremes, not trade returns. Both can be reached; internal gaps can hide touches.");
+      ". MFE and MAE are the furthest price rose and fell within the window: recorded extremes, not trade returns. Both can be reached; internal gaps can hide touches.");
   }
   function render() {
     if (!evidence) return;
     var g = group(), h = $("horizon").value, t = $("threshold").value === "" ? NaN : Number($("threshold").value);
     say("matchedLegend", g.label); say("referenceLabel", evidence.referenceLabel);
-    verdict(g, h, t); atGlance(g, h, t); outcomes(g, h, t); distribution(g, h); ladder(g, h, t);
+    verdict(g, h, t); atGlance(g, h, t); pairs(g, h, t); outcomes(g, h, t); distribution(g, h); ladder(g, h, t);
     say("referenceNote", evidence.referenceReason ? (evidence.referenceTimedOut ? "Reference timed out (" + evidence.referenceReason.split(":")[0] + "). The study is still valid; retry it later for a reference. No lift is shown."
         : "Reference: " + evidence.referenceReason + " No lift is shown.")
-      : evidence.referenceKind === "predicate_false" ? "Reference: other eligible minutes where the condition was false. It excludes matching minutes."
-      : "Reference: all eligible minutes in the same scope, including matches. It is not a matched control.");
+      : (evidence.referenceKind === "predicate_false" ? "Reference (the usual rate): other eligible minutes where the condition was false. It excludes matching minutes."
+        : "Reference (the usual rate): all eligible minutes in the same scope, including matches. It is not a matched control.")
+        + " Lift is the setup's rate divided by the reference rate.");
     say("limitations", (count(g.count) && g.count < 30 ? "Fewer than 30 occurrences; rates are sensitive to individual observations. " : "") +
       "Minute observations and forward windows can overlap. Historical comparisons do not establish a trading advantage.");
     say("details", JSON.stringify(evidence, null, 2)); resize();
