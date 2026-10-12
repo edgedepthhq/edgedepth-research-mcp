@@ -48,3 +48,23 @@ precedes allowance reservation and background work. Reopening never runs.
 See README's strategy section and web docs/RESEARCH_STRATEGIES.md. Backend then
 web migration/application precede MCP. Current package version stays unchanged
 until James authorizes release. Full 216-test suite passes locally.
+
+## Edge questions lead with payoff (2026-10-12, local)
+
+James: payoff is the centerpiece of any edge research. A scan answers how
+often and how far price moved, never whether trading it paid. The server
+instructions now open with an EDGE QUESTIONS rule (say so in the first
+sentence, never imply an edge from rates, MFE/MAE or representatives,
+propose run_trade_test with explicit rules, and when one has run lead with
+expectancy after fees and slippage, win rate, wins/losses, average win and
+loss with counts, plus the largest win's share of profit when a few wins
+carry the total). run_scan's description says it measures frequency, not
+payoff; the text answer carries an "Edge: not answered by this scan" line
+before Limits. The scan widget opens with a computed verdict comparing both
+directions with the reference ("Bigger moves either way, not a direction",
+"Leans up", "Leans down", "No clear difference from usual", or "Too few
+outcomes"), each ratio with its counts, and an always-visible "Is there an
+edge?" box pointing to a trade test. Prompted by a 2026-10-12 claude.ai
+recording where a newcomer could not read an answer from the charts. Tests:
+scanChart (verdict cases), scanText and workflow (instructions). 221 tests,
+typecheck and build pass. Package version unchanged; James releases.

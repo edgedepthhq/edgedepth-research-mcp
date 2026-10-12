@@ -15,6 +15,12 @@ import { registerResearchTools, type ToolContext } from './tools.js'
 const INSTRUCTIONS =
   'EdgeDepth Research: deterministic search over recorded crypto microstructure. ' +
   'Lead with the answer in approximately 50-150 words, counts beside rates, one limitation and replay links. Keep reproducibility and exact definitions in details. ' +
+  // Edge questions (James, 2026-10-12): payoff is the centerpiece, frequency is evidence.
+  'EDGE QUESTIONS: when the user asks whether a setup works, has an edge, is worth trading, would be profitable or "has worked since", the centerpiece of the answer is payoff: ' +
+  'do the wins outweigh the losses after costs? Scan results (run_scan, run_cohort, outcome rates, MFE/MAE, representatives) say how often and how far price moved, never whether trading it paid; ' +
+  'say so in the opening sentence, never imply an edge from them, and propose run_trade_test with explicit rules for approval (both directions when the frequency result is two-sided). ' +
+  'When a trade test has run, lead with expectancy after fees and slippage, then win rate, wins/losses, average win and average loss, each with its count; ' +
+  'if a few large wins carry the total, say how much of the profit the largest win supplied (from full_trades) and that the result depends on catching them. Funding is not included. ' +
   (process.env.EDGEDEPTH_CRYPTO_ONLY === '1' ? 'Stocks, traditional indices, FX, commodities and gold-backed tokens are retired. Preserve saved historical results and original scopes; never substitute crypto for an explicitly retired market. The API is authoritative for availability. ' : '') +
   'For live prices, personalized buy/sell advice or trade execution, invoke NO EdgeDepth tools, ' +
   'including registry/capability discovery. ' +

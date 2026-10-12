@@ -133,7 +133,8 @@ export function scanTextAnswer(response: ApiResponse, reference: ApiResponse | n
   if (calendar) lines.push(calendar.first_matching_day
     ? `Matching days: ${calendar.first_matching_day} to ${calendar.last_matching_day} UTC. Predicate first-data dates are unavailable; this is not the effective feature window.`
     : 'Matching days: none. Predicate first-data dates are unavailable.')
-  lines.push('Limits: adjacent matches may overlap; the unconditional reference includes matches and is not a matched control. Historical counts do not establish trading profitability.' +
+  lines.push('Edge: not answered by this scan. It counts how often and how far price moved, not whether the wins outweigh the losses after costs; that needs a trade test with explicit entry, stop, exit and costs (run_trade_test).')
+  lines.push('Limits: adjacent matches may overlap; the unconditional reference includes matches and is not a matched control.' +
     (measure?.kind === 'touch' ? ' Both directions can be touched; ordering is unknown and missing internal minutes can hide hits.' : ''))
   return lines.join('\n')
 }

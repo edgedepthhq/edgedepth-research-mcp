@@ -34,7 +34,10 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
   #resetOutcome:hover { border-color: var(--accent); }
   #glance { border-left: 3px solid var(--accent); background: light-dark(#edf7f2, #16281f); padding: 12px 14px; margin: 16px 0; }
   #glanceTitle { margin: 0; font-size: 12px; color: var(--muted); font-weight: 500; }
-  #glanceAnswer { font-size: 17px; font-weight: 600; line-height: 1.5; }
+  #verdict { font-size: 18px; font-weight: 650; line-height: 1.45; margin: 4px 0 6px; }
+  #verdictNote { margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; font-size: 14px; color: var(--ink); }
+  #verdictNote strong { font-weight: 650; }
+  #glanceAnswer { font-size: 15px; font-weight: 500; line-height: 1.5; }
   #glanceComparison { font-size: 13px; }
   #glanceCaveat { margin-bottom: 0; }
   option { color: var(--ink); background: var(--surface); }
@@ -86,6 +89,8 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
   <p id="question" class="muted"></p>
   <section id="glance" aria-labelledby="glanceTitle">
     <h3 id="glanceTitle">Result at a glance</h3>
+    <p id="verdict" class="num" aria-live="polite" aria-atomic="true" hidden></p>
+    <p id="verdictNote" hidden><strong>Is there an edge?</strong> <span id="verdictEdge"></span></p>
     <p id="glanceAnswer" class="num" aria-live="polite" aria-atomic="true"></p>
     <p id="glanceComparison" class="num"></p>
     <p id="glanceCaveat" class="muted"></p>
@@ -210,6 +215,36 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     var m = g.metrics[name], b = evidence.referenceMetrics[name], op = direction === "up" ? "gte" : "lte";
     var threshold = direction === "up" ? t : -t;
     return { m: m, b: b, r: rung(m, op, threshold), ref: rung(b, op, threshold) };
+  }
+  // The plain answer first: both directions against the reference, as counted
+  // ratios, so a two-sided result never reads as a direction. Frequency only;
+  // the note says payoff needs explicit trade rules.
+  function about(x) { return "about " + (x >= 10 ? Math.round(x).toString() : x.toFixed(1)) + "\u00d7"; }
+  function verdict(g, h, t) {
+    $("verdict").hidden = true; say("verdict", "");
+    // Every scan answers frequency, never payoff: the edge line always shows.
+    $("verdictNote").hidden = false;
+    say("verdictEdge", "Not answered here. This counts how often moves happened, not whether the wins outweigh the losses after costs. A few large wins can pay for many losses, or not: a trade test with explicit entry, stop, exit and costs measures that.");
+    if (!Number.isFinite(t) || evidence.referenceReason || !Object.keys(evidence.referenceMetrics).length) return;
+    var touch = !!evidence.measure && evidence.measure.kind === "touch";
+    var sides = ["up", "down"].map(function (direction) {
+      var v = outcomeReading(g, h, t, direction, touch);
+      if (!v.r || !v.ref || !v.m.present || !v.b.present || !v.ref.count) return null;
+      return { direction: direction, hits: v.r.count, of: v.m.present, lift: (v.r.count / v.m.present) / (v.ref.count / v.b.present) };
+    });
+    var up = sides[0], down = sides[1];
+    if (!up || !down) return;
+    $("verdict").hidden = false;
+    if (up.of < 30) { say("verdict", "Too few outcomes to judge (" + fmt(up.of) + " measured)."); return; }
+    var more = function (s) { return s.lift >= 1.25 && s.hits >= 10; };
+    var part = function (s) {
+      return (s.direction === "up" ? "+" : "-") + pct(t) + (touch ? " within " : " after ") + h + " " + about(s.lift)
+        + " as often as usual (" + fmt(s.hits) + " of " + fmt(s.of) + ")";
+    };
+    var head = more(up) && more(down) ? "Bigger moves either way, not a direction" + (down.lift > up.lift * 1.25 ? "; drops even more than runs."
+        : up.lift > down.lift * 1.25 ? "; runs even more than drops." : ".")
+      : more(up) ? "Leans up." : more(down) ? "Leans down." : "No clear difference from usual.";
+    say("verdict", head + " " + part(up) + "; " + part(down) + ".");
   }
   function atGlance(g, h, t) {
     var choice = evidence.measure, touch = choice && choice.kind === "touch";
@@ -356,7 +391,7 @@ export const SCAN_CHART_HTML = String.raw`<!doctype html>
     if (!evidence) return;
     var g = group(), h = $("horizon").value, t = $("threshold").value === "" ? NaN : Number($("threshold").value);
     say("matchedLegend", g.label); say("referenceLabel", evidence.referenceLabel);
-    atGlance(g, h, t); outcomes(g, h, t); distribution(g, h); ladder(g, h, t);
+    verdict(g, h, t); atGlance(g, h, t); outcomes(g, h, t); distribution(g, h); ladder(g, h, t);
     say("referenceNote", evidence.referenceReason ? (evidence.referenceTimedOut ? "Reference timed out (" + evidence.referenceReason.split(":")[0] + "). The study is still valid; retry it later for a reference. No lift is shown."
         : "Reference: " + evidence.referenceReason + " No lift is shown.")
       : evidence.referenceKind === "predicate_false" ? "Reference: other eligible minutes where the condition was false. It excludes matching minutes."

@@ -178,6 +178,13 @@ describe('compact scan text', () => {
     metric.present = 1_000_000
     expect(answer()).toContain('1 of 1000000 observed occurrences (0.0001%')
   })
+  it('states in the text answer that a scan does not answer whether there is an edge', () => {
+    const text = scanTextAnswer({ ok: true, status: 200, notModified: false,
+      bodyText: JSON.stringify(fixtures[0].result), headers: {} }, null, measure as any)!
+    expect(text).toContain('Edge: not answered by this scan.')
+    expect(text).toContain('whether the wins outweigh the losses after costs')
+    expect(text.indexOf('Edge:')).toBeLessThan(text.indexOf('Limits:'))
+  })
 
   it('separates projection ETags by text format and horizon', () => {
     const tags = [projectionTag(DEFAULT_LEAN), ...['1h', '24h'].map(textHorizon => projectionTag({ ...DEFAULT_LEAN, textHorizon }))]

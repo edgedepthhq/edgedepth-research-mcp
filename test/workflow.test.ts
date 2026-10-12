@@ -96,3 +96,20 @@ describe('natural-language proposal boundary', () => {
     }
   })
 })
+
+describe('edge questions lead with payoff', () => {
+  it('tells every agent that frequency is not an edge and routes edge questions to a trade test', async () => {
+    const client = await connectClient()
+    try {
+      const instructions = client.getInstructions() ?? ''
+      expect(instructions).toContain('EDGE QUESTIONS')
+      expect(instructions).toContain('the centerpiece of the answer is payoff')
+      expect(instructions).toContain('never imply an edge from them')
+      expect(instructions).toContain('lead with expectancy after fees and slippage')
+      const { tools } = await client.listTools()
+      const scan = tools.find(t => t.name === 'run_scan')!
+      expect(scan.description).toContain('not payoff')
+      expect(scan.description).toContain('run_trade_test')
+    } finally { await client.close() }
+  })
+})

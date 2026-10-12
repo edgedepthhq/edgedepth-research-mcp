@@ -987,7 +987,9 @@ export function registerResearchTools(server: McpServer, ctx: ToolContext): void
         'baseline when available, a reproducibility key, and replay-linked representatives. Read ' +
         'rates from outcomes_summary and use each horizon\'s present count as its denominator; ' +
         'horizons run from 30m to 7d, and a horizon absent for an occurrence is a record-edge ' +
-        'fact that is counted absent, never a small value. Do not ' +
+        'fact that is counted absent, never a small value. It measures how often and how far ' +
+        'price moved, not payoff: for any edge or profitability question, follow it with a ' +
+        'proposed run_trade_test rather than reading an edge from these rates. Do not ' +
         'use this for live quotes, personalized buy/sell advice, trade execution, prose ' +
         'interpretation, or outcome filtering. ' +
         CONFIRM_GATE_CONTRACT +

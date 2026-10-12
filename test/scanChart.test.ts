@@ -319,3 +319,40 @@ it('retains dates, roster and exact unknown clauses in legacy headings', () => {
   expect(heading.title).toBe('feature.unknown at least 0.25')
   expect(heading.scope).toContain('BTC, ETH')
 })
+
+describe('plain verdict before the counts', () => {
+  const touchUp = { kind: 'touch', direction: 'up', magnitude: 0.3, horizon: '24h' } as const
+  const sided = (present: number, up: number, down: number) => ({ present, absent: 0,
+    thresholds: [{ op: 'gte', threshold: 0.3, count: up }, { op: 'lte', threshold: -0.3, count: down }] })
+  const study = (up: number, down: number) => ({ counts: { total_matching: 1000, symbols_scanned: 70 },
+    outcomes_summary: { metrics: { mfe_24h: sided(1000, up, 0), mae_24h: sided(1000, 0, down) } } })
+  const baseline = (up: number, down: number) => response({ baseline: { metrics: {
+    mfe_24h: sided(10000, up, 0), mae_24h: sided(10000, 0, down) } } })
+  it('calls a two-sided lift bigger moves, not a direction, with counted ratios', () => {
+    const ui = host(scanChartMeta(response(study(31, 18)), baseline(210, 100), touchUp))
+    const text = ui.get('verdict').textContent
+    expect(ui.get('verdict').hidden).toBe(false)
+    expect(text).toContain('Bigger moves either way, not a direction.')
+    expect(text).toContain('+30% within 24h about 1.5× as often as usual (31 of 1,000)')
+    expect(text).toContain('-30% within 24h about 1.8× as often as usual (18 of 1,000)')
+    expect(ui.get('verdictNote').hidden).toBe(false)
+    expect(ui.get('verdictEdge').textContent).toContain('not whether the wins outweigh the losses after costs')
+    expect(text).not.toMatch(/edge|profit|signal/i)
+  })
+  it('names a one-sided lean even when the stated direction falls short', () => {
+    const ui = host(scanChartMeta(response(study(13, 27)), baseline(210, 90), touchUp))
+    const text = ui.get('verdict').textContent
+    expect(text).toContain('Leans down.')
+    expect(text).toContain('about 0.6× as often as usual (13 of 1,000)')
+    expect(text).toContain('about 3.0× as often as usual (27 of 1,000)')
+  })
+  it('claims nothing without a reference or with too few outcomes', () => {
+    const ui = host(scanChartMeta(response(study(31, 18)), null, touchUp))
+    expect(ui.get('verdict').hidden).toBe(true)
+    expect(ui.get('verdictNote').hidden).toBe(false)
+    expect(ui.get('verdictEdge').textContent).toContain('Not answered here')
+    const few = study(5, 4); few.outcomes_summary.metrics.mfe_24h.present = 20; few.outcomes_summary.metrics.mae_24h.present = 20
+    ui.receive({ _meta: scanChartMeta(response(few), baseline(210, 100), touchUp) })
+    expect(ui.get('verdict').textContent).toContain('Too few outcomes to judge (20 measured)')
+  })
+})
